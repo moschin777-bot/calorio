@@ -1,0 +1,176 @@
+==========================================
+Деплой Calorio API на сервер
+==========================================
+
+Сервер: 217.26.29.106
+Пользователь: root
+Пароль: C&6!wMqm!wOZ
+
+ИНСТРУКЦИЯ:
+1. Подключитесь к серверу: ssh root@217.26.29.106
+2. Введите пароль: C&6!wMqm!wOZ
+3. Выполните следующие команды:
+
+==========================================
+КОМАНДЫ ДЛЯ ВЫПОЛНЕНИЯ НА СЕРВЕРЕ:
+==========================================
+
+# 1. Установка необходимого ПО
+apt update && apt upgrade -y
+apt install -y python3.11 python3.11-venv python3.11-dev git nginx postgresql postgresql-contrib build-essential libpq-dev curl
+
+# 2. Настройка PostgreSQL
+sudo -u postgres psql << PSQL
+CREATE DATABASE calorio;
+CREATE USER calorio_user WITH PASSWORD 'calorio_secure_pass_2024';
+ALTER ROLE calorio_user SET client_encoding TO 'utf8';
+ALTER ROLE calorio_user SET default_transaction_isolation TO 'read committed';
+ALTER ROLE calorio_user SET timezone TO 'UTC';
+GRANT ALL PRIVILEGES ON DATABASE calorio TO calorio_user;
+\q
+PSQL
+
+# 3. Создание пользователя для приложения
+useradd -m -s /bin/bash calorio || echo "Пользователь calorio уже существует"
+mkdir -p /var/www/calorio
+chown calorio:calorio /var/www/calorio
+
+# 4. Клонирование проекта
+sudo -u calorio bash << 'USERSCRIPT'
+cd /var/www/calorio
+if [ -d .git ]; then
+    git pull origin main
+else
+    git clone https://github.com/moschin777-bot/calorio.git .
+fi
+
+# 5. Создание виртуального окружения
+python3.11 -m venv venv
+source venv/bin/activate
+
+# 6. Установка зависимостей
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 7. Настройка .env
+cp .env.production .env
+
+# Редактирование .env (замените значения на реальные)
+cat > .env << 'ENVFILE'
+SECRET_KEY=django-insecure-CHANGE-THIS-TO-SECURE-KEY-IN-PRODUCTION-12345678901234567890
+DEBUG=False
+ALLOWED_HOSTS=217.26.29.106,colories.ru,www.colories.ru
+DATABASE_URL=postgresql://calorio_user:calorio_secure_pass_2024@localhost:5432/calorio
+OPENROUTER_API_KEY=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
+PAYMENT_WEBHOOK_SECRET=webhook-secret-change-me-in-production
+CORS_ALLOWED_ORIGINS=https://colories.ru,https://www.colories.ru,http://colories.ru,http://www.colories.ru
+ENVFILE
+
+# 8. Применение миграций
+python manage.py migrate --noinput
+
+# 9. Создание суперпользователя (пропустите если уже создан)
+# python manage.py createsuperuser
+
+# 10. Сбор статических файлов
+python manage.py collectstatic --noinput
+
+# 11. Создание директории для логов
+mkdir -p logs
+
+exit
+USERSCRIPT
+
+# 12. Настройка systemd service
+cat > /etc/systemd/system/calorio.service << 'SERVICE'
+[Unit]
+Description=Calorio API Gunicorn daemon
+After=network.target
+
+[Service]
+Type=notify
+User=calorio
+Group=calorio
+WorkingDirectory=/var/www/calorio
+Environment="PATH=/var/www/calorio/venv/bin"
+ExecStart=/var/www/calorio/venv/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/var/www/calorio/gunicorn.sock \
+    --timeout 120 \
+    --access-logfile /var/www/calorio/logs/gunicorn-access.log \
+    --error-logfile /var/www/calorio/logs/gunicorn-error.log \
+    --log-level info \
+    calorio_api.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+# 13. Запуск сервиса
+systemctl daemon-reload
+systemctl enable calorio
+systemctl start calorio
+systemctl status calorio
+
+# 14. Настройка Nginx
+cat > /etc/nginx/sites-available/calorio << 'NGINX'
+upstream calorio_app {
+    server unix:/var/www/calorio/gunicorn.sock fail_timeout=0;
+}
+
+server {
+    listen 80;
+    server_name 217.26.29.106 colories.ru www.colories.ru;
+
+    client_max_body_size 10M;
+
+    location /static/ {
+        alias /var/www/calorio/staticfiles/;
+    }
+
+    location /media/ {
+        alias /var/www/calorio/media/;
+    }
+
+    location / {
+        proxy_pass http://calorio_app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+}
+NGINX
+
+# 15. Активация конфигурации Nginx
+ln -sf /etc/nginx/sites-available/calorio /etc/nginx/sites-enabled/calorio
+rm -f /etc/nginx/sites-enabled/default
+nginx -t
+systemctl restart nginx
+
+# 16. Установка Certbot для SSL
+apt install -y certbot python3-certbot-nginx
+
+# 17. Получение SSL сертификата (выполните после настройки DNS)
+# certbot --nginx -d colories.ru -d www.colories.ru
+
+echo ""
+echo "=========================================="
+echo "Деплой завершён!"
+echo "=========================================="
+echo ""
+echo "Проверьте работу API:"
+echo "  curl http://217.26.29.106/api/health/"
+echo "  curl http://colories.ru/api/health/"
+echo ""
+echo "Просмотр логов:"
+echo "  journalctl -u calorio -f"
+echo "  tail -f /var/www/calorio/logs/gunicorn-error.log"
+
+==========================================
+КОНЕЦ КОМАНД
+==========================================
+
+Скопируйте команды выше и выполните их на сервере
+Или сохраните их в файл и выполните через bash
