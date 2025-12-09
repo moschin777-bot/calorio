@@ -5,7 +5,6 @@ from .views import (
     LoginView,
     LogoutView,
     ProfileView,
-    ProfileUpdateView,
     EmailUpdateView,
     PasswordChangeView,
 )
@@ -21,8 +20,6 @@ urlpatterns = [
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Профиль
-    path('profile/', ProfileView.as_view(), name='profile'),
-    path('profile/update/', ProfileUpdateView.as_view(), name='profile-update'),
-    path('profile/email/', EmailUpdateView.as_view(), name='email-update'),
-    path('profile/password/', PasswordChangeView.as_view(), name='password-change'),
+    path('profile/', ProfileView.as_view(), name='profile'),  # GET, PATCH, PUT
+    path('profile/change-password/', PasswordChangeView.as_view(), name='password-change'),
 ]
