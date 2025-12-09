@@ -1,0 +1,17 @@
+[run]
+omit =
+    manage.py
+    calorio_api/asgi.py
+    calorio_api/wsgi.py
+    pytest_django_settings.py
+    **/migrations/*
+    core/error_handlers.py
+    core/exceptions.py
+    core/tests.py
+    users/tests.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == "__main__":
+

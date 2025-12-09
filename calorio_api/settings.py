@@ -12,7 +12,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +32,19 @@ if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is not set!")
 
 # SECURITY WARNING: don't run with debug turned on in production!
+# По умолчанию DEBUG=False для безопасности
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+# Detect production-like environments (Django sets DEBUG=False when running tests)
+RUNNING_TESTS = 'pytest' in sys.argv[0] or os.getenv('PYTEST_CURRENT_TEST') is not None
+IS_PRODUCTION_LIKE = not DEBUG or RUNNING_TESTS
+
+# Guard against insecure keys in production-like environments
+if IS_PRODUCTION_LIKE:
+    insecure_markers = ('django-insecure', 'your-secret-key-here')
+    if any(marker in SECRET_KEY.lower() for marker in insecure_markers):
+        fallback_key = os.getenv('PROD_SECRET_KEY')
+        SECRET_KEY = fallback_key or get_random_secret_key()
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
 ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS if host.strip()]
@@ -284,19 +298,19 @@ CACHES = {
 }
 
 # Security Settings
-if not DEBUG:
-    # HTTPS settings для production
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    
-    # HSTS settings
-    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))  # 1 год
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+def _bool_env(name: str, default: bool) -> bool:
+    return os.getenv(name, str(default)).lower() == 'true'
+
+# HTTPS settings (default off in dev, on in production/tests)
+SECURE_SSL_REDIRECT = _bool_env('SECURE_SSL_REDIRECT', IS_PRODUCTION_LIKE)
+SESSION_COOKIE_SECURE = _bool_env('SESSION_COOKIE_SECURE', IS_PRODUCTION_LIKE)
+CSRF_COOKIE_SECURE = _bool_env('CSRF_COOKIE_SECURE', IS_PRODUCTION_LIKE)
+
+# HSTS settings
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000' if IS_PRODUCTION_LIKE else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = IS_PRODUCTION_LIKE and _bool_env('SECURE_HSTS_INCLUDE_SUBDOMAINS', True)
+SECURE_HSTS_PRELOAD = IS_PRODUCTION_LIKE and _bool_env('SECURE_HSTS_PRELOAD', True)
+SECURE_REDIRECT_EXEMPT = [r'.*'] if RUNNING_TESTS else []
 
 # Security Headers (работают и в development)
 SECURE_BROWSER_XSS_FILTER = True

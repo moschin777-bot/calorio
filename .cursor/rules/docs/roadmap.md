@@ -203,6 +203,21 @@
 - [x] Достижение 70% покрытия кода тестами (143 теста проходят)
 - [x] Создание DEPLOYMENT_READINESS_REPORT.md с полным отчётом
 
+## Этап 20: Production деплой
+
+- [x] Создание .env.production с настройками для colories.ru
+- [x] Создание скрипта server_setup.sh для установки ПО на сервере
+- [x] Создание systemd service файла для gunicorn
+- [x] Создание Nginx конфигурации для colories.ru и www.colories.ru
+- [x] Создание скрипта deploy.sh для автоматического деплоя
+- [x] Создание PRODUCTION_DEPLOY.md с подробной инструкцией
+- [x] Создание QUICK_DEPLOY.md для быстрого старта
+- [x] Настройка DEBUG=False по умолчанию в settings.py
+- [x] Настройка ALLOWED_HOSTS для production доменов
+- [x] Настройка DATABASE_URL для PostgreSQL
+- [x] Настройка CORS для production доменов
+- [x] Настройка Security Headers для HTTPS
+
 ## Дополнительные улучшения (опционально)
 
 - [ ] Добавление возможности экспорта данных

@@ -1,0 +1,35 @@
+[Unit]
+Description=Calorio API - Gunicorn daemon
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=calorio
+Group=calorio
+WorkingDirectory=/var/www/calorio
+Environment="PATH=/var/www/calorio/venv/bin"
+EnvironmentFile=/var/www/calorio/.env
+ExecStart=/var/www/calorio/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind unix:/var/www/calorio/calorio.sock \
+    --timeout 120 \
+    --access-logfile /var/www/calorio/logs/gunicorn-access.log \
+    --error-logfile /var/www/calorio/logs/gunicorn-error.log \
+    --log-level info \
+    calorio_api.wsgi:application
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
