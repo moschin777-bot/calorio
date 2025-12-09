@@ -1,0 +1,653 @@
+==========================================
+Автоматический деплой Calorio API
+==========================================
+
+spawn ssh -o StrictHostKeyChecking=no root@217.26.29.106
+root@217.26.29.106's password: 
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.0-160-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Tue Dec  9 06:32:17 PM UTC 2025
+
+  System load:  0.0               Processes:             103
+  Usage of /:   8.7% of 28.89GB   Users logged in:       0
+  Memory usage: 17%               IPv4 address for eth0: 217.26.29.106
+  Swap usage:   0%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+3 updates can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+New release '24.04.3 LTS' available.
+Run 'do-release-upgrade' to upgrade to it.
+
+
+*** System restart required ***
+Last login: Tue Dec  9 14:00:58 2025 from 185.155.118.1
+root@tqyhzemtmk:~# 
+✅ Подключение успешно
+
+ð¦ Установка необходимого ПО...
+<l postgresql-contrib build-essential libpq-dev curl
+[33m0% [Working][0m            Get:1 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security InRelease [129 kB]
+[33m0% [1 InRelease 0 B/129 kB 0%] [Connected to packages.beget.com (5.101.158.100)[0m[33m                                                                               0% [Waiting for headers][0m                        Get:2 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+[33m0% [2 InRelease 1,173 B/128 kB 1%] [Waiting for headers][0m[33m0% [Waiting for headers] [Waiting for headers] [Connecting to download.docker.c[0m                                                                               Hit:3 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy InRelease
+[33m                                                                               0% [Waiting for headers] [Connecting to download.docker.com][0m                                                            Hit:4 https://packages.beget.com/deb/production generic InRelease
+[33m                                                            0% [Connecting to download.docker.com][0m[33m0% [Connecting to download.docker.com][0m                                      Get:5 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 Packages [2,851 kB]
+[33m0% [5 Packages 15.2 kB/2,851 kB 1%] [Connecting to download.docker.com (108.138[0m[33m0% [Connecting to security.ubuntu.com] [Connected to download.docker.com (108.1[0m[33m0% [5 Packages store 0 B] [Waiting for headers] [Connecting to security.ubuntu.[0m                                                                               Get:6 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main Translation-en [411 kB]
+[33m0% [5 Packages store 0 B] [6 Translation-en 31.1 kB/411 kB 8%] [Connecting to s[0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Connected to dow[0m                                                                               Get:7 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/universe amd64 Packages [1,007 kB]
+[33m0% [5 Packages store 0 B] [7 Packages 0 B/1,007 kB 0%] [Connecting to security.[0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Connected to dow[0m                                                                               Get:8 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/universe Translation-en [220 kB]
+[33m0% [5 Packages store 0 B] [8 Translation-en 0 B/220 kB 0%] [Connecting to secur[0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Connected to dow[0m                                                                               Get:9 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/universe amd64 c-n-f Metadata [22.3 kB]
+[33m0% [5 Packages store 0 B] [9 Commands-amd64 0 B/22.3 kB 0%] [Connecting to secu[0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Connected to dow[0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Waiting for head[0m                                                                               Ign:10 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages
+[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Waiting for head[0m                                                                               Get:11 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/main Translation-en [478 kB]
+[33m0% [5 Packages store 0 B] [11 Translation-en 12.3 kB/478 kB 3%] [Connecting to [0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Waiting for head[0m                                                                               Get:12 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/main amd64 c-n-f Metadata [19.0 kB]
+[33m0% [5 Packages store 0 B] [12 Commands-amd64 0 B/19.0 kB 0%] [Connecting to sec[0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com] [Waiting for head[0m                                                                               Get:13 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/restricted amd64 Packages [4,944 kB]
+[33m0% [5 Packages store 0 B] [13 Packages 0 B/4,944 kB 0%] [Connecting to security[0m                                                                               Get:14 https://download.docker.com/linux/ubuntu jammy InRelease [48.5 kB]
+[33m0% [5 Packages store 0 B] [13 Packages 1,296 kB/4,944 kB 26%] [Connecting to se[0m[33m0% [5 Packages store 0 B] [13 Packages 4,596 kB/4,944 kB 93%] [Connecting to se[0m[33m                                                                               0% [5 Packages store 0 B] [Connecting to security.ubuntu.com][0m                                                             Get:15 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/restricted Translation-en [923 kB]
+[33m0% [5 Packages store 0 B] [15 Translation-en 0 B/923 kB 0%] [Connecting to secu[0m[33m                                                                               0% [5 Packages store 0 B] [Connecting to security.ubuntu.com][0m                                                             Get:16 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 Packages [1,244 kB]
+[33m0% [5 Packages store 0 B] [16 Packages 0 B/1,244 kB 0%] [Connecting to security[0m[33m                                                                               0% [5 Packages store 0 B] [Connecting to security.ubuntu.com][0m                                                             Ign:17 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 c-n-f Metadata
+[33m0% [5 Packages store 0 B] [Waiting for headers] [Connecting to security.ubuntu.[0m                                                                               Get:10 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages [3,112 kB]
+[33m0% [5 Packages store 0 B] [10 Packages 12.3 kB/3,112 kB 0%] [Connecting to secu[0m[33m                                                                               0% [5 Packages store 0 B] [Connecting to security.ubuntu.com][0m                                                             Get:17 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 c-n-f Metadata [30.0 kB]
+[33m0% [5 Packages store 0 B] [17 Commands-amd64 12.8 kB/30.0 kB 43%] [Connecting t[0m[33m                                                                               0% [5 Packages store 0 B] [Connecting to security.ubuntu.com][0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com][0m[33m0% [5 Packages store 0 B] [Connecting to security.ubuntu.com (185.125.190.82)][0m[33m                                                                              0% [Waiting for headers][0m[33m0% [6 Translation-en store 0 B] [Waiting for headers][0m[33m0% [6 Translation-en store 0 B] [Connecting to nova.clouds.archive.ubuntu.com] [0m                                                                               Hit:18 http://security.ubuntu.com/ubuntu jammy-security InRelease
+[33m                                                                               0% [6 Translation-en store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m                                                                              0% [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [7 Packages store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [7 Packages store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m                                                                        0% [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [8 Translation-en store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m                                                                              0% [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [9 Commands-amd64 store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m                                                                              0% [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [11 Translation-en store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m                                                                               0% [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [12 Commands-amd64 store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m[33m                                                                               0% [Connecting to nova.clouds.archive.ubuntu.com][0m[33m0% [13 Packages store 0 B] [Connecting to nova.clouds.archive.ubuntu.com][0m                                                                         Hit:19 http://nova.clouds.archive.ubuntu.com/ubuntu jammy InRelease
+[33m                                                                         0% [13 Packages store 0 B][0m                          Get:20 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+[33m0% [13 Packages store 0 B] [20 InRelease 14.0 kB/128 kB 11%][0m[33m0% [13 Packages store 0 B] [20 InRelease 15.4 kB/128 kB 12%][0m[33m                                                            0% [20 InRelease 89.3 kB/128 kB 70%][0m[33m0% [15 Translation-en store 0 B] [20 InRelease 89.3 kB/128 kB 70%][0m[33m                                                                  0% [15 Translation-en store 0 B][0m                                Hit:21 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-backports InRelease
+[33m0% [15 Translation-en store 0 B][0m[33m                                0% [Working][0m[33m0% [16 Packages store 0 B][0m[33m0% [16 Packages store 0 B][0m[33m                          0% [Waiting for headers][0m[33m0% [10 Packages store 0 B] [Waiting for headers][0m[33m69% [10 Packages store 0 B] [Waiting for headers][0m                                                 Get:22 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages [3,112 kB]
+[33m69% [10 Packages store 0 B] [22 Packages 2,452 B/3,112 kB 0%][0m[33m                                                             73% [22 Packages 1,212 kB/3,112 kB 39%][0m[33m73% [17 Commands-amd64 store 0 B] [22 Packages 1,212 kB/3,112 kB 39%][0m[33m                                                                     73% [22 Packages 1,258 kB/3,112 kB 40%][0m[33m                                       79% [Working][0m[33m79% [22 Packages store 0 B][0m                           Get:23 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-updates/main Translation-en [478 kB]
+[33m79% [22 Packages store 0 B] [23 Translation-en 43.0 kB/478 kB 9%][0m[33m                                                                 81% [22 Packages store 0 B] [Waiting for headers][0m                                                 Get:24 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-updates/restricted amd64 Packages [4,944 kB]
+[33m81% [22 Packages store 0 B] [24 Packages 44.5 kB/4,944 kB 1%][0m[33m                                                             85% [24 Packages 1,293 kB/4,944 kB 26%][0m[33m85% [23 Translation-en store 0 B] [24 Packages 1,293 kB/4,944 kB 26%][0m[33m                                                                     88% [24 Packages 2,365 kB/4,944 kB 48%][0m[33m                                       97% [Waiting for headers][0m                         Get:25 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-updates/restricted Translation-en [923 kB]
+[33m97% [25 Translation-en 50.5 kB/923 kB 5%][0m[33m97% [24 Packages store 0 B] [25 Translation-en 50.5 kB/923 kB 5%][0m[33m                                                                 100% [24 Packages store 0 B] [Waiting for headers][0m                                                  Get:26 http://nova.clouds.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 c-n-f Metadata [30.0 kB]
+[33m100% [24 Packages store 0 B] [26 Commands-amd64 30.0 kB/30.0 kB 100%][0m[33m                                                                     100% [24 Packages store 0 B][0m[33m                            100% [Working][0m[33m100% [25 Translation-en store 0 B][0m[33m                                  100% [Working][0m[33m100% [26 Commands-amd64 store 0 B][0m[33m                                  100% [Working][0m              Fetched 25.2 MB in 3s (8,337 kB/s)
+Reading package lists... 0%Reading package lists... 0%Reading package lists... 0%Reading package lists... 2%Reading package lists... 2%Reading package lists... 5%Reading package lists... 5%Reading package lists... 10%Reading package lists... 10%Reading package lists... 13%Reading package lists... 13%Reading package lists... 14%Reading package lists... 14%Reading package lists... 14%Reading package lists... 14%Reading package lists... 14%Reading package lists... 14%Reading package lists... 14%Reading package lists... 14%Reading package lists... 18%Reading package lists... 18%Reading package lists... 20%Reading package lists... 20%Reading package lists... 25%Reading package lists... 25%Reading package lists... 28%Reading package lists... 28%Reading package lists... 30%Reading package lists... 30%Reading package lists... 30%Reading package lists... 30%Reading package lists... 30%Reading package lists... 30%Reading package lists... 30%Reading package lists... 30%Reading package lists... 31%Reading package lists... 31%Reading package lists... 32%Reading package lists... 32%Reading package lists... 32%Reading package lists... 32%Reading package lists... 32%Reading package lists... 32%Reading package lists... 41%Reading package lists... 44%Reading package lists... 44%Reading package lists... 49%Reading package lists... 49%Reading package lists... 49%Reading package lists... 49%Reading package lists... 49%Reading package lists... 49%Reading package lists... 51%Reading package lists... 51%Reading package lists... 51%Reading package lists... 51%Reading package lists... 51%Reading package lists... 51%Reading package lists... 51%Reading package lists... 51%Reading package lists... 63%Reading package lists... 63%Reading package lists... 68%Reading package lists... 68%Reading package lists... 68%Reading package lists... 68%Reading package lists... 68%Reading package lists... 68%Reading package lists... 72%Reading package lists... 72%Reading package lists... 74%Reading package lists... 74%Reading package lists... 79%Reading package lists... 79%Reading package lists... 82%Reading package lists... 82%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 84%Reading package lists... 87%Reading package lists... 87%Reading package lists... 89%Reading package lists... 89%Reading package lists... 95%Reading package lists... 95%Reading package lists... 98%Reading package lists... 98%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... 99%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+7 packages can be upgraded. Run 'apt list --upgradable' to see them.
+[1;33mW: [0mhttps://download.docker.com/linux/ubuntu/dists/jammy/InRelease: Key is stored in legacy trusted.gpg keyring (/etc/apt/trusted.gpg), see the DEPRECATION section in apt-key(8) for details.[0m
+Reading package lists... 0%Reading package lists... 100%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+curl is already the newest version (7.81.0-1ubuntu1.21).
+git is already the newest version (1:2.34.1-1ubuntu1.15).
+The following additional packages will be installed:
+  cpp cpp-11 dpkg-dev fakeroot fontconfig-config fonts-dejavu-core g++ g++-11
+  gcc gcc-11 gcc-11-base libalgorithm-diff-perl libalgorithm-diff-xs-perl
+  libalgorithm-merge-perl libasan6 libatomic1 libc-dev-bin libc-devtools
+  libc6-dev libcc1-0 libcommon-sense-perl libcrypt-dev libdeflate0
+  libdpkg-perl libexpat1-dev libfakeroot libfile-fcntllock-perl libfontconfig1
+  libgcc-11-dev libgd3 libgomp1 libisl23 libitm1 libjbig0 libjpeg-turbo8
+  libjpeg8 libjson-perl libjson-xs-perl libllvm14 liblsan0 libmpc3
+  libnginx-mod-http-geoip2 libnginx-mod-http-image-filter
+  libnginx-mod-http-xslt-filter libnginx-mod-mail libnginx-mod-stream
+  libnginx-mod-stream-geoip2 libnsl-dev libpq5 libpython3.11 libpython3.11-dev
+  libpython3.11-minimal libpython3.11-stdlib libquadmath0 libssl-dev
+  libstdc++-11-dev libtiff5 libtirpc-dev libtsan0 libtypes-serialiser-perl
+  libubsan1 libwebp7 libxpm4 linux-libc-dev lto-disabled-list make
+  manpages-dev nginx-common nginx-core postgresql-14 postgresql-client-14
+  postgresql-client-common postgresql-common python3-pip-whl
+  python3-setuptools-whl python3.11-minimal rpcsvc-proto ssl-cert zlib1g-dev
+Suggested packages:
+  cpp-doc gcc-11-locales debian-keyring g++-multilib g++-11-multilib
+  gcc-11-doc gcc-multilib autoconf automake libtool flex bison gdb gcc-doc
+  gcc-11-multilib glibc-doc bzr libgd-tools postgresql-doc-14 libssl-doc
+  libstdc++-11-doc make-doc fcgiwrap nginx-doc postgresql-doc python3.11-doc
+  binfmt-support
+The following NEW packages will be installed:
+  build-essential cpp cpp-11 dpkg-dev fakeroot fontconfig-config
+  fonts-dejavu-core g++ g++-11 gcc gcc-11 gcc-11-base libalgorithm-diff-perl
+  libalgorithm-diff-xs-perl libalgorithm-merge-perl libasan6 libatomic1
+  libc-dev-bin libc-devtools libc6-dev libcc1-0 libcommon-sense-perl
+  libcrypt-dev libdeflate0 libdpkg-perl libexpat1-dev libfakeroot
+  libfile-fcntllock-perl libfontconfig1 libgcc-11-dev libgd3 libgomp1 libisl23
+  libitm1 libjbig0 libjpeg-turbo8 libjpeg8 libjson-perl libjson-xs-perl
+  libllvm14 liblsan0 libmpc3 libnginx-mod-http-geoip2
+  libnginx-mod-http-image-filter libnginx-mod-http-xslt-filter
+  libnginx-mod-mail libnginx-mod-stream libnginx-mod-stream-geoip2 libnsl-dev
+  libpq-dev libpq5 libpython3.11 libpython3.11-dev libpython3.11-minimal
+  libpython3.11-stdlib libquadmath0 libssl-dev libstdc++-11-dev libtiff5
+  libtirpc-dev libtsan0 libtypes-serialiser-perl libubsan1 libwebp7 libxpm4
+  linux-libc-dev lto-disabled-list make manpages-dev nginx nginx-common
+  nginx-core postgresql postgresql-14 postgresql-client-14
+  postgresql-client-common postgresql-common postgresql-contrib
+  python3-pip-whl python3-setuptools-whl python3.11 python3.11-dev
+  python3.11-minimal python3.11-venv rpcsvc-proto ssl-cert zlib1g-dev
+0 upgraded, 87 newly installed, 0 to remove and 7 not upgraded.
+Need to get 126 MB of archives.
+After this operation, 444 MB of additional disk space will be used.
+[33m0% [Working][0m            Get:1 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 libpython3.11-minimal amd64 3.11.0~rc1-1~22.04 [837 kB]
+[33m0% [1 libpython3.11-minimal 4,096 B/837 kB 0%][0m[33m                                              1% [Working][0m            Get:2 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 python3.11-minimal amd64 3.11.0~rc1-1~22.04 [2,370 kB]
+[33m1% [2 python3.11-minimal 4,096 B/2,370 kB 0%][0m[33m                                             2% [Waiting for headers][0m                        Get:3 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libc-dev-bin amd64 2.35-0ubuntu3.11 [20.3 kB]
+[33m3% [Waiting for headers][0m                        Get:4 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 linux-libc-dev amd64 5.15.0-163.173 [1,326 kB]
+[33m3% [4 linux-libc-dev 4,096 B/1,326 kB 0%][0m[33m                                         4% [Waiting for headers][0m                        Get:5 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libcrypt-dev amd64 1:4.4.27-1 [112 kB]
+[33m4% [5 libcrypt-dev 1,173 B/112 kB 1%][0m[33m                                     4% [Working][0m            Get:6 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 rpcsvc-proto amd64 1.4.2-0ubuntu6 [68.5 kB]
+[33m4% [6 rpcsvc-proto 1,174 B/68.5 kB 2%][0m[33m                                      4% [Working][0m            Get:7 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libtirpc-dev amd64 1.3.2-2ubuntu0.1 [192 kB]
+[33m4% [7 libtirpc-dev 1,173 B/192 kB 1%][0m[33m                                     5% [Working][0m            Get:8 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libnsl-dev amd64 1.3.0-2build2 [71.3 kB]
+[33m5% [8 libnsl-dev 1,174 B/71.3 kB 2%][0m[33m                                    5% [Waiting for headers][0m                        Get:9 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libc6-dev amd64 2.35-0ubuntu3.11 [2,100 kB]
+[33m5% [9 libc6-dev 1,171 B/2,100 kB 0%][0m[33m                                    7% [Waiting for headers][0m                        Get:10 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 gcc-11-base amd64 11.4.0-1ubuntu1~22.04.2 [20.8 kB]
+[33m7% [10 gcc-11-base 20.8 kB/20.8 kB 100%][0m[33m                                        7% [Waiting for headers][0m                        Get:11 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libisl23 amd64 0.24-2build1 [727 kB]
+[33m7% [11 libisl23 1,173 B/727 kB 0%][0m[33m                                  8% [Waiting for headers][0m                        Get:12 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libmpc3 amd64 1.2.1-2build1 [46.9 kB]
+[33m8% [12 libmpc3 1,175 B/46.9 kB 3%][0m[33m                                  8% [Working][0m            Get:13 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 cpp-11 amd64 11.4.0-1ubuntu1~22.04.2 [10.0 MB]
+[33m8% [13 cpp-11 1,170 B/10.0 MB 0%][0m[33m                                 14% [Waiting for headers][0m                         Get:14 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 cpp amd64 4:11.2.0-1ubuntu1 [27.7 kB]
+                         Get:15 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libcc1-0 amd64 12.3.0-1ubuntu1~22.04.2 [48.3 kB]
+                         Get:16 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libgomp1 amd64 12.3.0-1ubuntu1~22.04.2 [127 kB]
+[33m15% [16 libgomp1 102 kB/127 kB 81%][0m[33m                                   15% [Waiting for headers][0m                         Get:17 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libitm1 amd64 12.3.0-1ubuntu1~22.04.2 [30.2 kB]
+[33m15% [17 libitm1 4,096 B/30.2 kB 14%][0m[33m                                    15% [Working][0m             Get:18 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libatomic1 amd64 12.3.0-1ubuntu1~22.04.2 [10.4 kB]
+[33m15% [18 libatomic1 1,175 B/10.4 kB 11%][0m[33m                                       16% [Working][0m             Get:19 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libasan6 amd64 11.4.0-1ubuntu1~22.04.2 [2,283 kB]
+[33m16% [19 libasan6 1,171 B/2,283 kB 0%][0m[33m                                     17% [Waiting for headers][0m                         Get:20 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 liblsan0 amd64 12.3.0-1ubuntu1~22.04.2 [1,069 kB]
+[33m17% [20 liblsan0 28.7 kB/1,069 kB 3%][0m[33m                                     18% [Waiting for headers][0m                         Get:21 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libtsan0 amd64 11.4.0-1ubuntu1~22.04.2 [2,262 kB]
+[33m18% [21 libtsan0 1,171 B/2,262 kB 0%][0m[33m                                     20% [Waiting for headers][0m                         Get:22 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libubsan1 amd64 12.3.0-1ubuntu1~22.04.2 [976 kB]
+[33m20% [22 libubsan1 32.6 kB/976 kB 3%][0m[33m                                    21% [Waiting for headers][0m                         Get:23 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libquadmath0 amd64 12.3.0-1ubuntu1~22.04.2 [154 kB]
+[33m21% [23 libquadmath0 1,173 B/154 kB 1%][0m[33m                                       21% [Working][0m             Get:24 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libgcc-11-dev amd64 11.4.0-1ubuntu1~22.04.2 [2,517 kB]
+[33m21% [24 libgcc-11-dev 4,067 B/2,517 kB 0%][0m[33m                                          23% [Working][0m             Get:25 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 gcc-11 amd64 11.4.0-1ubuntu1~22.04.2 [20.1 MB]
+[33m23% [25 gcc-11 2,617 B/20.1 MB 0%][0m                                  Get:26 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 gcc amd64 4:11.2.0-1ubuntu1 [5,112 B]
+                                  Get:27 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libstdc++-11-dev amd64 11.4.0-1ubuntu1~22.04.2 [2,101 kB]
+[33m36% [27 libstdc++-11-dev 196 kB/2,101 kB 9%][0m[33m                                            38% [Waiting for headers][0m                         Get:28 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 g++-11 amd64 11.4.0-1ubuntu1~22.04.2 [11.4 MB]
+[33m38% [28 g++-11 20.7 kB/11.4 MB 0%][0m[33m                                  45% [Waiting for headers][0m                         Get:29 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 g++ amd64 4:11.2.0-1ubuntu1 [1,412 B]
+                         Get:30 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 make amd64 4.3-4.1build1 [180 kB]
+[33m46% [Waiting for headers][0m                         Get:31 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libdpkg-perl all 1.21.1ubuntu2.6 [237 kB]
+[33m46% [31 libdpkg-perl 4,096 B/237 kB 2%][0m[33m                                       46% [Waiting for headers][0m                         Get:32 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 lto-disabled-list all 24 [12.5 kB]
+[33m46% [32 lto-disabled-list 5,271 B/12.5 kB 42%][0m[33m                                              46% [Working][0m             Get:33 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 dpkg-dev all 1.21.1ubuntu2.6 [922 kB]
+[33m46% [33 dpkg-dev 1,173 B/922 kB 0%][0m[33m                                   47% [Waiting for headers][0m                         Get:34 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 build-essential amd64 12.9ubuntu3 [4,744 B]
+[33m47% [34 build-essential 4,744 B/4,744 B 100%][0m[33m                                             48% [Waiting for headers][0m                         Get:35 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libfakeroot amd64 1.28-1ubuntu1 [31.5 kB]
+[33m48% [35 libfakeroot 1,175 B/31.5 kB 4%][0m[33m                                       48% [Working][0m             Get:36 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 fakeroot amd64 1.28-1ubuntu1 [60.4 kB]
+[33m48% [36 fakeroot 1,175 B/60.4 kB 2%][0m[33m                                    48% [Working][0m             Get:37 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 fonts-dejavu-core all 2.37-2build1 [1,041 kB]
+[33m48% [37 fonts-dejavu-core 1,172 B/1,041 kB 0%][0m[33m                                              49% [Waiting for headers][0m                         Get:38 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 fontconfig-config all 2.13.1-4.2ubuntu5 [29.1 kB]
+[33m49% [38 fontconfig-config 1,175 B/29.1 kB 4%][0m[33m                                             49% [Waiting for headers][0m                         Get:39 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libalgorithm-diff-perl all 1.201-1 [41.8 kB]
+[33m49% [39 libalgorithm-diff-perl 4,096 B/41.8 kB 10%][0m[33m                                                   49% [Working][0m             Get:40 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libalgorithm-diff-xs-perl amd64 0.04-6build3 [11.9 kB]
+[33m49% [40 libalgorithm-diff-xs-perl 1,175 B/11.9 kB 10%][0m[33m                                                      50% [Working][0m             Get:41 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libalgorithm-merge-perl all 0.08-3 [12.0 kB]
+[33m50% [41 libalgorithm-merge-perl 1,175 B/12.0 kB 10%][0m[33m                                                    50% [Working][0m             Get:42 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libfontconfig1 amd64 2.13.1-4.2ubuntu5 [131 kB]
+[33m50% [42 libfontconfig1 1,173 B/131 kB 1%][0m[33m                                         50% [Working][0m             Get:43 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libjpeg-turbo8 amd64 2.1.2-0ubuntu1 [134 kB]
+[33m50% [43 libjpeg-turbo8 8,165 B/134 kB 6%][0m[33m                                         51% [Working][0m             Get:44 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libjpeg8 amd64 8c-2ubuntu10 [2,264 B]
+[33m51% [44 libjpeg8 1,177 B/2,264 B 52%][0m[33m                                     51% [Working][0m             Get:45 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libdeflate0 amd64 1.10-2 [70.9 kB]
+[33m51% [45 libdeflate0 1,174 B/70.9 kB 2%][0m[33m                                       51% [Waiting for headers][0m                         Get:46 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libjbig0 amd64 2.1-3.1ubuntu0.22.04.1 [29.2 kB]
+[33m51% [46 libjbig0 2,623 B/29.2 kB 9%][0m[33m                                    51% [Working][0m             Get:47 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libwebp7 amd64 1.2.2-2ubuntu0.22.04.2 [206 kB]
+[33m51% [47 libwebp7 4,096 B/206 kB 2%][0m[33m                                   52% [Waiting for headers][0m                         Get:48 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libtiff5 amd64 4.3.0-6ubuntu0.12 [185 kB]
+[33m52% [48 libtiff5 1,173 B/185 kB 1%][0m[33m                                   52% [Waiting for headers][0m                         Get:49 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libxpm4 amd64 1:3.5.12-1ubuntu0.22.04.2 [36.7 kB]
+[33m52% [49 libxpm4 8,192 B/36.7 kB 22%][0m[33m                                    52% [Waiting for headers][0m                         Get:50 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libgd3 amd64 2.3.0-2ubuntu2.3 [129 kB]
+[33m52% [50 libgd3 1,173 B/129 kB 1%][0m[33m                                 53% [Waiting for headers][0m                         Get:51 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libc-devtools amd64 2.35-0ubuntu3.11 [29.0 kB]
+[33m53% [51 libc-devtools 1,175 B/29.0 kB 4%][0m[33m                                         53% [Working][0m             Get:52 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libcommon-sense-perl amd64 3.75-2build1 [21.1 kB]
+[33m53% [52 libcommon-sense-perl 1,175 B/21.1 kB 6%][0m[33m                                                53% [Waiting for headers][0m                         Get:53 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libexpat1-dev amd64 2.4.7-1ubuntu0.6 [148 kB]
+[33m53% [53 libexpat1-dev 1,173 B/148 kB 1%][0m[33m                                        53% [Waiting for headers][0m                         Get:54 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libfile-fcntllock-perl amd64 0.22-3build7 [33.9 kB]
+[33m53% [54 libfile-fcntllock-perl 1,175 B/33.9 kB 3%][0m[33m                                                  54% [Waiting for headers][0m                         Get:55 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libjson-perl all 4.04000-1 [81.8 kB]
+[33m54% [55 libjson-perl 1,174 B/81.8 kB 1%][0m[33m                                        54% [Waiting for headers][0m                         Get:56 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 libtypes-serialiser-perl all 1.01-1 [11.6 kB]
+[33m54% [56 libtypes-serialiser-perl 1,175 B/11.6 kB 10%][0m[33m                                                     54% [Waiting for headers][0m                         Get:57 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libjson-xs-perl amd64 4.040-0ubuntu0.22.04.1 [87.0 kB]
+[33m54% [57 libjson-xs-perl 5,270 B/87.0 kB 6%][0m[33m                                           54% [Waiting for headers][0m                         Get:58 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libllvm14 amd64 1:14.0.0-1ubuntu1.1 [24.0 MB]
+[33m54% [58 libllvm14 1,598 B/24.0 MB 0%][0m[33m                                     70% [Waiting for headers][0m                         Get:59 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 nginx-common all 1.18.0-6ubuntu14.7 [40.1 kB]
+                         Get:60 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libnginx-mod-http-geoip2 amd64 1.18.0-6ubuntu14.7 [12.0 kB]
+                         Get:61 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libnginx-mod-http-image-filter amd64 1.18.0-6ubuntu14.7 [15.5 kB]
+                         Get:62 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libnginx-mod-http-xslt-filter amd64 1.18.0-6ubuntu14.7 [13.8 kB]
+                         Get:63 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libnginx-mod-mail amd64 1.18.0-6ubuntu14.7 [45.8 kB]
+                         Get:64 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libnginx-mod-stream amd64 1.18.0-6ubuntu14.7 [73.0 kB]
+[33m71% [64 libnginx-mod-stream 73.0 kB/73.0 kB 100%][0m                                                 Get:65 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libnginx-mod-stream-geoip2 amd64 1.18.0-6ubuntu14.7 [10.1 kB]
+[33m71% [65 libnginx-mod-stream-geoip2 10.1 kB/10.1 kB 100%][0m[33m                                                        72% [Working][0m             Get:66 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libpq5 amd64 14.20-0ubuntu0.22.04.1 [153 kB]
+[33m72% [66 libpq5 4,096 B/153 kB 3%][0m[33m                                 72% [Waiting for headers][0m                         Get:67 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libssl-dev amd64 3.0.2-0ubuntu1.20 [2,376 kB]
+[33m72% [67 libssl-dev 1,171 B/2,376 kB 0%][0m[33m                                       74% [Waiting for headers][0m                         Get:68 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 libpq-dev amd64 14.20-0ubuntu0.22.04.1 [149 kB]
+[33m74% [68 libpq-dev 12.3 kB/149 kB 8%][0m[33m                                    74% [Working][0m             Get:69 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 libpython3.11-stdlib amd64 3.11.0~rc1-1~22.04 [1,859 kB]
+[33m74% [69 libpython3.11-stdlib 12.3 kB/1,859 kB 1%][0m[33m                                                 75% [Waiting for headers][0m                         Get:70 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 libpython3.11 amd64 3.11.0~rc1-1~22.04 [2,226 kB]
+[33m75% [70 libpython3.11 1,171 B/2,226 kB 0%][0m[33m                                          77% [Waiting for headers][0m                         Get:71 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 zlib1g-dev amd64 1:1.2.11.dfsg-2ubuntu9.2 [164 kB]
+[33m77% [71 zlib1g-dev 4,096 B/164 kB 2%][0m[33m                                     77% [Working][0m             Get:72 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 libpython3.11-dev amd64 3.11.0~rc1-1~22.04 [5,590 kB]
+[33m77% [72 libpython3.11-dev 5,267 B/5,590 kB 0%][0m[33m                                              81% [Waiting for headers][0m                         Get:73 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 manpages-dev all 5.10-1ubuntu1 [2,309 kB]
+[33m81% [73 manpages-dev 98.4 kB/2,309 kB 4%][0m[33m                                         83% [Waiting for headers][0m                         Get:74 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 nginx-core amd64 1.18.0-6ubuntu14.7 [483 kB]
+[33m83% [74 nginx-core 1,173 B/483 kB 0%][0m[33m                                     83% [Working][0m             Get:75 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 nginx amd64 1.18.0-6ubuntu14.7 [3,878 B]
+[33m83% [75 nginx 1,177 B/3,878 B 30%][0m[33m                                  84% [Working][0m             Get:76 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 postgresql-client-common all 238 [29.6 kB]
+[33m84% [76 postgresql-client-common 1,175 B/29.6 kB 4%][0m[33m                                                    84% [Working][0m             Get:77 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 postgresql-client-14 amd64 14.20-0ubuntu0.22.04.1 [1,250 kB]
+[33m84% [77 postgresql-client-14 1,171 B/1,250 kB 0%][0m[33m                                                 85% [Waiting for headers][0m                         Get:78 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 ssl-cert all 1.1.2 [17.4 kB]
+[33m85% [78 ssl-cert 1,175 B/17.4 kB 7%][0m[33m                                    85% [Working][0m             Get:79 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 postgresql-common all 238 [169 kB]
+[33m85% [79 postgresql-common 4,096 B/169 kB 2%][0m[33m                                            86% [Working][0m             Get:80 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/main amd64 postgresql-14 amd64 14.20-0ubuntu0.22.04.1 [16.2 MB]
+[33m86% [80 postgresql-14 1,170 B/16.2 MB 0%][0m[33m                                         96% [Waiting for headers][0m                         Get:81 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 postgresql all 14+238 [3,288 B]
+[33m96% [81 postgresql 3,288 B/3,288 B 100%][0m                                        Get:82 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy/main amd64 postgresql-contrib all 14+238 [3,292 B]
+                                        Get:83 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/universe amd64 python3-pip-whl all 22.0.2+dfsg-1ubuntu0.7 [1,683 kB]
+[33m97% [83 python3-pip-whl 196 kB/1,683 kB 12%][0m[33m                                            98% [Waiting for headers][0m                         Get:84 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-security/universe amd64 python3-setuptools-whl all 59.6.0-1.2ubuntu0.22.04.3 [789 kB]
+[33m98% [84 python3-setuptools-whl 17.6 kB/789 kB 2%][0m[33m                                                 99% [Waiting for headers][0m                         Get:85 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 python3.11 amd64 3.11.0~rc1-1~22.04 [550 kB]
+[33m99% [85 python3.11 12.3 kB/550 kB 2%][0m[33m                                     99% [Working][0m             Get:86 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 python3.11-dev amd64 3.11.0~rc1-1~22.04 [614 kB]
+[33m99% [86 python3.11-dev 4,394 B/614 kB 1%][0m[33m                                         100% [Working][0m              Get:87 http://public-mirrors.beget.ru/apt/ru.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 python3.11-venv amd64 3.11.0~rc1-1~22.04 [5,730 B]
+[33m100% [87 python3.11-venv 1,176 B/5,730 B 21%][0m[33m                                             100% [Working][0m              Fetched 126 MB in 1s (89.7 MB/s)
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+Extracting templates from packages: 34%Extracting templates from packages: 68%Extracting templates from packages: 100%
+Preconfiguring packages ...
+Selecting previously unselected package libpython3.11-minimal:amd64.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 96056 files and directories currently installed.)
+Preparing to unpack .../00-libpython3.11-minimal_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking libpython3.11-minimal:amd64 (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package python3.11-minimal.
+Preparing to unpack .../01-python3.11-minimal_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking python3.11-minimal (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package libc-dev-bin.
+Preparing to unpack .../02-libc-dev-bin_2.35-0ubuntu3.11_amd64.deb ...
+Unpacking libc-dev-bin (2.35-0ubuntu3.11) ...
+Selecting previously unselected package linux-libc-dev:amd64.
+Preparing to unpack .../03-linux-libc-dev_5.15.0-163.173_amd64.deb ...
+Unpacking linux-libc-dev:amd64 (5.15.0-163.173) ...
+Selecting previously unselected package libcrypt-dev:amd64.
+Preparing to unpack .../04-libcrypt-dev_1%3a4.4.27-1_amd64.deb ...
+Unpacking libcrypt-dev:amd64 (1:4.4.27-1) ...
+Selecting previously unselected package rpcsvc-proto.
+Preparing to unpack .../05-rpcsvc-proto_1.4.2-0ubuntu6_amd64.deb ...
+Unpacking rpcsvc-proto (1.4.2-0ubuntu6) ...
+Selecting previously unselected package libtirpc-dev:amd64.
+Preparing to unpack .../06-libtirpc-dev_1.3.2-2ubuntu0.1_amd64.deb ...
+Unpacking libtirpc-dev:amd64 (1.3.2-2ubuntu0.1) ...
+Selecting previously unselected package libnsl-dev:amd64.
+Preparing to unpack .../07-libnsl-dev_1.3.0-2build2_amd64.deb ...
+Unpacking libnsl-dev:amd64 (1.3.0-2build2) ...
+Selecting previously unselected package libc6-dev:amd64.
+Preparing to unpack .../08-libc6-dev_2.35-0ubuntu3.11_amd64.deb ...
+Unpacking libc6-dev:amd64 (2.35-0ubuntu3.11) ...
+Selecting previously unselected package gcc-11-base:amd64.
+Preparing to unpack .../09-gcc-11-base_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking gcc-11-base:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libisl23:amd64.
+Preparing to unpack .../10-libisl23_0.24-2build1_amd64.deb ...
+Unpacking libisl23:amd64 (0.24-2build1) ...
+Selecting previously unselected package libmpc3:amd64.
+Preparing to unpack .../11-libmpc3_1.2.1-2build1_amd64.deb ...
+Unpacking libmpc3:amd64 (1.2.1-2build1) ...
+Selecting previously unselected package cpp-11.
+Preparing to unpack .../12-cpp-11_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking cpp-11 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package cpp.
+Preparing to unpack .../13-cpp_4%3a11.2.0-1ubuntu1_amd64.deb ...
+Unpacking cpp (4:11.2.0-1ubuntu1) ...
+Selecting previously unselected package libcc1-0:amd64.
+Preparing to unpack .../14-libcc1-0_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libcc1-0:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libgomp1:amd64.
+Preparing to unpack .../15-libgomp1_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libgomp1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libitm1:amd64.
+Preparing to unpack .../16-libitm1_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libitm1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libatomic1:amd64.
+Preparing to unpack .../17-libatomic1_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libatomic1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libasan6:amd64.
+Preparing to unpack .../18-libasan6_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libasan6:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package liblsan0:amd64.
+Preparing to unpack .../19-liblsan0_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking liblsan0:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libtsan0:amd64.
+Preparing to unpack .../20-libtsan0_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libtsan0:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libubsan1:amd64.
+Preparing to unpack .../21-libubsan1_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libubsan1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libquadmath0:amd64.
+Preparing to unpack .../22-libquadmath0_12.3.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libquadmath0:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package libgcc-11-dev:amd64.
+Preparing to unpack .../23-libgcc-11-dev_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libgcc-11-dev:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package gcc-11.
+Preparing to unpack .../24-gcc-11_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking gcc-11 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package gcc.
+Preparing to unpack .../25-gcc_4%3a11.2.0-1ubuntu1_amd64.deb ...
+Unpacking gcc (4:11.2.0-1ubuntu1) ...
+Selecting previously unselected package libstdc++-11-dev:amd64.
+Preparing to unpack .../26-libstdc++-11-dev_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking libstdc++-11-dev:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package g++-11.
+Preparing to unpack .../27-g++-11_11.4.0-1ubuntu1~22.04.2_amd64.deb ...
+Unpacking g++-11 (11.4.0-1ubuntu1~22.04.2) ...
+Selecting previously unselected package g++.
+Preparing to unpack .../28-g++_4%3a11.2.0-1ubuntu1_amd64.deb ...
+Unpacking g++ (4:11.2.0-1ubuntu1) ...
+Selecting previously unselected package make.
+Preparing to unpack .../29-make_4.3-4.1build1_amd64.deb ...
+Unpacking make (4.3-4.1build1) ...
+Selecting previously unselected package libdpkg-perl.
+Preparing to unpack .../30-libdpkg-perl_1.21.1ubuntu2.6_all.deb ...
+Unpacking libdpkg-perl (1.21.1ubuntu2.6) ...
+Selecting previously unselected package lto-disabled-list.
+Preparing to unpack .../31-lto-disabled-list_24_all.deb ...
+Unpacking lto-disabled-list (24) ...
+Selecting previously unselected package dpkg-dev.
+Preparing to unpack .../32-dpkg-dev_1.21.1ubuntu2.6_all.deb ...
+Unpacking dpkg-dev (1.21.1ubuntu2.6) ...
+Selecting previously unselected package build-essential.
+Preparing to unpack .../33-build-essential_12.9ubuntu3_amd64.deb ...
+Unpacking build-essential (12.9ubuntu3) ...
+Selecting previously unselected package libfakeroot:amd64.
+Preparing to unpack .../34-libfakeroot_1.28-1ubuntu1_amd64.deb ...
+Unpacking libfakeroot:amd64 (1.28-1ubuntu1) ...
+Selecting previously unselected package fakeroot.
+Preparing to unpack .../35-fakeroot_1.28-1ubuntu1_amd64.deb ...
+Unpacking fakeroot (1.28-1ubuntu1) ...
+Selecting previously unselected package fonts-dejavu-core.
+Preparing to unpack .../36-fonts-dejavu-core_2.37-2build1_all.deb ...
+Unpacking fonts-dejavu-core (2.37-2build1) ...
+Selecting previously unselected package fontconfig-config.
+Preparing to unpack .../37-fontconfig-config_2.13.1-4.2ubuntu5_all.deb ...
+Unpacking fontconfig-config (2.13.1-4.2ubuntu5) ...
+Selecting previously unselected package libalgorithm-diff-perl.
+Preparing to unpack .../38-libalgorithm-diff-perl_1.201-1_all.deb ...
+Unpacking libalgorithm-diff-perl (1.201-1) ...
+Selecting previously unselected package libalgorithm-diff-xs-perl.
+Preparing to unpack .../39-libalgorithm-diff-xs-perl_0.04-6build3_amd64.deb ...
+Unpacking libalgorithm-diff-xs-perl (0.04-6build3) ...
+Selecting previously unselected package libalgorithm-merge-perl.
+Preparing to unpack .../40-libalgorithm-merge-perl_0.08-3_all.deb ...
+Unpacking libalgorithm-merge-perl (0.08-3) ...
+Selecting previously unselected package libfontconfig1:amd64.
+Preparing to unpack .../41-libfontconfig1_2.13.1-4.2ubuntu5_amd64.deb ...
+Unpacking libfontconfig1:amd64 (2.13.1-4.2ubuntu5) ...
+Selecting previously unselected package libjpeg-turbo8:amd64.
+Preparing to unpack .../42-libjpeg-turbo8_2.1.2-0ubuntu1_amd64.deb ...
+Unpacking libjpeg-turbo8:amd64 (2.1.2-0ubuntu1) ...
+Selecting previously unselected package libjpeg8:amd64.
+Preparing to unpack .../43-libjpeg8_8c-2ubuntu10_amd64.deb ...
+Unpacking libjpeg8:amd64 (8c-2ubuntu10) ...
+Selecting previously unselected package libdeflate0:amd64.
+Preparing to unpack .../44-libdeflate0_1.10-2_amd64.deb ...
+Unpacking libdeflate0:amd64 (1.10-2) ...
+Selecting previously unselected package libjbig0:amd64.
+Preparing to unpack .../45-libjbig0_2.1-3.1ubuntu0.22.04.1_amd64.deb ...
+Unpacking libjbig0:amd64 (2.1-3.1ubuntu0.22.04.1) ...
+Selecting previously unselected package libwebp7:amd64.
+Preparing to unpack .../46-libwebp7_1.2.2-2ubuntu0.22.04.2_amd64.deb ...
+Unpacking libwebp7:amd64 (1.2.2-2ubuntu0.22.04.2) ...
+Selecting previously unselected package libtiff5:amd64.
+Preparing to unpack .../47-libtiff5_4.3.0-6ubuntu0.12_amd64.deb ...
+Unpacking libtiff5:amd64 (4.3.0-6ubuntu0.12) ...
+Selecting previously unselected package libxpm4:amd64.
+Preparing to unpack .../48-libxpm4_1%3a3.5.12-1ubuntu0.22.04.2_amd64.deb ...
+Unpacking libxpm4:amd64 (1:3.5.12-1ubuntu0.22.04.2) ...
+Selecting previously unselected package libgd3:amd64.
+Preparing to unpack .../49-libgd3_2.3.0-2ubuntu2.3_amd64.deb ...
+Unpacking libgd3:amd64 (2.3.0-2ubuntu2.3) ...
+Selecting previously unselected package libc-devtools.
+Preparing to unpack .../50-libc-devtools_2.35-0ubuntu3.11_amd64.deb ...
+Unpacking libc-devtools (2.35-0ubuntu3.11) ...
+Selecting previously unselected package libcommon-sense-perl:amd64.
+Preparing to unpack .../51-libcommon-sense-perl_3.75-2build1_amd64.deb ...
+Unpacking libcommon-sense-perl:amd64 (3.75-2build1) ...
+Selecting previously unselected package libexpat1-dev:amd64.
+Preparing to unpack .../52-libexpat1-dev_2.4.7-1ubuntu0.6_amd64.deb ...
+Unpacking libexpat1-dev:amd64 (2.4.7-1ubuntu0.6) ...
+Selecting previously unselected package libfile-fcntllock-perl.
+Preparing to unpack .../53-libfile-fcntllock-perl_0.22-3build7_amd64.deb ...
+Unpacking libfile-fcntllock-perl (0.22-3build7) ...
+Selecting previously unselected package libjson-perl.
+Preparing to unpack .../54-libjson-perl_4.04000-1_all.deb ...
+Unpacking libjson-perl (4.04000-1) ...
+Selecting previously unselected package libtypes-serialiser-perl.
+Preparing to unpack .../55-libtypes-serialiser-perl_1.01-1_all.deb ...
+Unpacking libtypes-serialiser-perl (1.01-1) ...
+Selecting previously unselected package libjson-xs-perl.
+Preparing to unpack .../56-libjson-xs-perl_4.040-0ubuntu0.22.04.1_amd64.deb ...
+Unpacking libjson-xs-perl (4.040-0ubuntu0.22.04.1) ...
+Selecting previously unselected package libllvm14:amd64.
+Preparing to unpack .../57-libllvm14_1%3a14.0.0-1ubuntu1.1_amd64.deb ...
+Unpacking libllvm14:amd64 (1:14.0.0-1ubuntu1.1) ...
+Selecting previously unselected package nginx-common.
+Preparing to unpack .../58-nginx-common_1.18.0-6ubuntu14.7_all.deb ...
+Unpacking nginx-common (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libnginx-mod-http-geoip2.
+Preparing to unpack .../59-libnginx-mod-http-geoip2_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking libnginx-mod-http-geoip2 (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libnginx-mod-http-image-filter.
+Preparing to unpack .../60-libnginx-mod-http-image-filter_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking libnginx-mod-http-image-filter (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libnginx-mod-http-xslt-filter.
+Preparing to unpack .../61-libnginx-mod-http-xslt-filter_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking libnginx-mod-http-xslt-filter (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libnginx-mod-mail.
+Preparing to unpack .../62-libnginx-mod-mail_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking libnginx-mod-mail (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libnginx-mod-stream.
+Preparing to unpack .../63-libnginx-mod-stream_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking libnginx-mod-stream (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libnginx-mod-stream-geoip2.
+Preparing to unpack .../64-libnginx-mod-stream-geoip2_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking libnginx-mod-stream-geoip2 (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package libpq5:amd64.
+Preparing to unpack .../65-libpq5_14.20-0ubuntu0.22.04.1_amd64.deb ...
+Unpacking libpq5:amd64 (14.20-0ubuntu0.22.04.1) ...
+Selecting previously unselected package libssl-dev:amd64.
+Preparing to unpack .../66-libssl-dev_3.0.2-0ubuntu1.20_amd64.deb ...
+Unpacking libssl-dev:amd64 (3.0.2-0ubuntu1.20) ...
+Selecting previously unselected package libpq-dev.
+Preparing to unpack .../67-libpq-dev_14.20-0ubuntu0.22.04.1_amd64.deb ...
+Unpacking libpq-dev (14.20-0ubuntu0.22.04.1) ...
+Selecting previously unselected package libpython3.11-stdlib:amd64.
+Preparing to unpack .../68-libpython3.11-stdlib_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking libpython3.11-stdlib:amd64 (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package libpython3.11:amd64.
+Preparing to unpack .../69-libpython3.11_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking libpython3.11:amd64 (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package zlib1g-dev:amd64.
+Preparing to unpack .../70-zlib1g-dev_1%3a1.2.11.dfsg-2ubuntu9.2_amd64.deb ...
+Unpacking zlib1g-dev:amd64 (1:1.2.11.dfsg-2ubuntu9.2) ...
+Selecting previously unselected package libpython3.11-dev:amd64.
+Preparing to unpack .../71-libpython3.11-dev_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking libpython3.11-dev:amd64 (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package manpages-dev.
+Preparing to unpack .../72-manpages-dev_5.10-1ubuntu1_all.deb ...
+Unpacking manpages-dev (5.10-1ubuntu1) ...
+Selecting previously unselected package nginx-core.
+Preparing to unpack .../73-nginx-core_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking nginx-core (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package nginx.
+Preparing to unpack .../74-nginx_1.18.0-6ubuntu14.7_amd64.deb ...
+Unpacking nginx (1.18.0-6ubuntu14.7) ...
+Selecting previously unselected package postgresql-client-common.
+Preparing to unpack .../75-postgresql-client-common_238_all.deb ...
+Unpacking postgresql-client-common (238) ...
+Selecting previously unselected package postgresql-client-14.
+Preparing to unpack .../76-postgresql-client-14_14.20-0ubuntu0.22.04.1_amd64.deb ...
+Unpacking postgresql-client-14 (14.20-0ubuntu0.22.04.1) ...
+Selecting previously unselected package ssl-cert.
+Preparing to unpack .../77-ssl-cert_1.1.2_all.deb ...
+Unpacking ssl-cert (1.1.2) ...
+Selecting previously unselected package postgresql-common.
+Preparing to unpack .../78-postgresql-common_238_all.deb ...
+Adding 'diversion of /usr/bin/pg_config to /usr/bin/pg_config.libpq-dev by postgresql-common'
+Unpacking postgresql-common (238) ...
+Selecting previously unselected package postgresql-14.
+Preparing to unpack .../79-postgresql-14_14.20-0ubuntu0.22.04.1_amd64.deb ...
+Unpacking postgresql-14 (14.20-0ubuntu0.22.04.1) ...
+Selecting previously unselected package postgresql.
+Preparing to unpack .../80-postgresql_14+238_all.deb ...
+Unpacking postgresql (14+238) ...
+Selecting previously unselected package postgresql-contrib.
+Preparing to unpack .../81-postgresql-contrib_14+238_all.deb ...
+Unpacking postgresql-contrib (14+238) ...
+Selecting previously unselected package python3-pip-whl.
+Preparing to unpack .../82-python3-pip-whl_22.0.2+dfsg-1ubuntu0.7_all.deb ...
+Unpacking python3-pip-whl (22.0.2+dfsg-1ubuntu0.7) ...
+Selecting previously unselected package python3-setuptools-whl.
+Preparing to unpack .../83-python3-setuptools-whl_59.6.0-1.2ubuntu0.22.04.3_all.deb ...
+Unpacking python3-setuptools-whl (59.6.0-1.2ubuntu0.22.04.3) ...
+Selecting previously unselected package python3.11.
+Preparing to unpack .../84-python3.11_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking python3.11 (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package python3.11-dev.
+Preparing to unpack .../85-python3.11-dev_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking python3.11-dev (3.11.0~rc1-1~22.04) ...
+Selecting previously unselected package python3.11-venv.
+Preparing to unpack .../86-python3.11-venv_3.11.0~rc1-1~22.04_amd64.deb ...
+Unpacking python3.11-venv (3.11.0~rc1-1~22.04) ...
+Setting up postgresql-client-common (238) ...
+Setting up gcc-11-base:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up manpages-dev (5.10-1ubuntu1) ...
+Setting up python3-setuptools-whl (59.6.0-1.2ubuntu0.22.04.3) ...
+Setting up lto-disabled-list (24) ...
+Setting up libxpm4:amd64 (1:3.5.12-1ubuntu0.22.04.2) ...
+Setting up libfile-fcntllock-perl (0.22-3build7) ...
+Setting up python3-pip-whl (22.0.2+dfsg-1ubuntu0.7) ...
+Setting up libalgorithm-diff-perl (1.201-1) ...
+Setting up libpq5:amd64 (14.20-0ubuntu0.22.04.1) ...
+Setting up libdeflate0:amd64 (1.10-2) ...
+Setting up libcommon-sense-perl:amd64 (3.75-2build1) ...
+Setting up linux-libc-dev:amd64 (5.15.0-163.173) ...
+Setting up nginx-common (1.18.0-6ubuntu14.7) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+Created symlink /etc/systemd/system/multi-user.target.wants/nginx.service → /lib/systemd/system/nginx.service.
+Setting up libgomp1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up postgresql-client-14 (14.20-0ubuntu0.22.04.1) ...
+update-alternatives: using /usr/share/postgresql/14/man/man1/psql.1.gz to provide /usr/share/man/man1/psql.1.gz (psql.1.gz) in auto mode
+Setting up libjbig0:amd64 (2.1-3.1ubuntu0.22.04.1) ...
+Setting up libfakeroot:amd64 (1.28-1ubuntu1) ...
+Setting up libasan6:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up fakeroot (1.28-1ubuntu1) ...
+update-alternatives: using /usr/bin/fakeroot-sysv to provide /usr/bin/fakeroot (fakeroot) in auto mode
+Setting up libnginx-mod-http-xslt-filter (1.18.0-6ubuntu14.7) ...
+Setting up libtirpc-dev:amd64 (1.3.2-2ubuntu0.1) ...
+Setting up rpcsvc-proto (1.4.2-0ubuntu6) ...
+Setting up make (4.3-4.1build1) ...
+Setting up ssl-cert (1.1.2) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+Setting up libquadmath0:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libssl-dev:amd64 (3.0.2-0ubuntu1.20) ...
+Setting up libmpc3:amd64 (1.2.1-2build1) ...
+Setting up libatomic1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up fonts-dejavu-core (2.37-2build1) ...
+Setting up libjpeg-turbo8:amd64 (2.1.2-0ubuntu1) ...
+Setting up libdpkg-perl (1.21.1ubuntu2.6) ...
+Setting up libwebp7:amd64 (1.2.2-2ubuntu0.22.04.2) ...
+Setting up libubsan1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libllvm14:amd64 (1:14.0.0-1ubuntu1.1) ...
+Setting up libtypes-serialiser-perl (1.01-1) ...
+Setting up libnsl-dev:amd64 (1.3.0-2build2) ...
+Setting up libcrypt-dev:amd64 (1:4.4.27-1) ...
+Setting up libjson-perl (4.04000-1) ...
+Setting up libpython3.11-minimal:amd64 (3.11.0~rc1-1~22.04) ...
+Setting up libisl23:amd64 (0.24-2build1) ...
+Setting up libnginx-mod-http-geoip2 (1.18.0-6ubuntu14.7) ...
+Setting up libc-dev-bin (2.35-0ubuntu3.11) ...
+Setting up libalgorithm-diff-xs-perl (0.04-6build3) ...
+Setting up libcc1-0:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up liblsan0:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libitm1:amd64 (12.3.0-1ubuntu1~22.04.2) ...
+Setting up libalgorithm-merge-perl (0.08-3) ...
+Setting up libtsan0:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up libjpeg8:amd64 (8c-2ubuntu10) ...
+Setting up python3.11-minimal (3.11.0~rc1-1~22.04) ...
+Setting up libjson-xs-perl (4.040-0ubuntu0.22.04.1) ...
+Setting up cpp-11 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up libnginx-mod-mail (1.18.0-6ubuntu14.7) ...
+Setting up fontconfig-config (2.13.1-4.2ubuntu5) ...
+Setting up libpython3.11-stdlib:amd64 (3.11.0~rc1-1~22.04) ...
+Setting up libnginx-mod-stream (1.18.0-6ubuntu14.7) ...
+Setting up libpq-dev (14.20-0ubuntu0.22.04.1) ...
+Setting up dpkg-dev (1.21.1ubuntu2.6) ...
+Setting up postgresql-common (238) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+Adding user postgres to group ssl-cert
+
+Creating config file /etc/postgresql-common/createcluster.conf with new version
+Building PostgreSQL dictionaries from installed myspell/hunspell packages...
+Removing obsolete dictionary files:
+Created symlink /etc/systemd/system/multi-user.target.wants/postgresql.service → /lib/systemd/system/postgresql.service.
+Setting up libgcc-11-dev:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up gcc-11 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up cpp (4:11.2.0-1ubuntu1) ...
+Setting up libc6-dev:amd64 (2.35-0ubuntu3.11) ...
+Setting up libtiff5:amd64 (4.3.0-6ubuntu0.12) ...
+Setting up libfontconfig1:amd64 (2.13.1-4.2ubuntu5) ...
+Setting up libnginx-mod-stream-geoip2 (1.18.0-6ubuntu14.7) ...
+Setting up postgresql-14 (14.20-0ubuntu0.22.04.1) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+Creating new PostgreSQL cluster 14/main ...
+/usr/lib/postgresql/14/bin/initdb -D /var/lib/postgresql/14/main --auth-local peer --auth-host scram-sha-256 --no-instructions
+The files belonging to this database system will be owned by user "postgres".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "en_US.UTF-8".
+The default database encoding has accordingly been set to "UTF8".
+The default text search configuration will be set to "english".
+
+Data page checksums are disabled.
+
+fixing permissions on existing directory /var/lib/postgresql/14/main ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting default time zone ... Etc/UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+update-alternatives: using /usr/share/postgresql/14/man/man1/postmaster.1.gz to provide /usr/share/man/man1/postmaster.1.gz (postmaster.1.gz) in auto mode
+Setting up python3.11 (3.11.0~rc1-1~22.04) ...
+Setting up libpython3.11:amd64 (3.11.0~rc1-1~22.04) ...
+Setting up gcc (4:11.2.0-1ubuntu1) ...
+Setting up libexpat1-dev:amd64 (2.4.7-1ubuntu0.6) ...
+Setting up python3.11-venv (3.11.0~rc1-1~22.04) ...
+Setting up libgd3:amd64 (2.3.0-2ubuntu2.3) ...
+Setting up libstdc++-11-dev:amd64 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up zlib1g-dev:amd64 (1:1.2.11.dfsg-2ubuntu9.2) ...
+Setting up postgresql-contrib (14+238) ...
+Setting up postgresql (14+238) ...
+Setting up libc-devtools (2.35-0ubuntu3.11) ...
+Setting up g++-11 (11.4.0-1ubuntu1~22.04.2) ...
+Setting up libnginx-mod-http-image-filter (1.18.0-6ubuntu14.7) ...
+Setting up libpython3.11-dev:amd64 (3.11.0~rc1-1~22.04) ...
+Setting up g++ (4:11.2.0-1ubuntu1) ...
+update-alternatives: using /usr/bin/g++ to provide /usr/bin/c++ (c++) in auto mode
+Setting up build-essential (12.9ubuntu3) ...
+Setting up nginx-core (1.18.0-6ubuntu14.7) ...
+ * Upgrading binary nginx
+   ...done.
+Setting up nginx (1.18.0-6ubuntu14.7) ...
+Setting up python3.11-dev (3.11.0~rc1-1~22.04) ...
+Processing triggers for ufw (0.36.1-4ubuntu0.1) ...
+Processing triggers for man-db (2.10.2-1) ...
+Processing triggers for libc-bin (2.35-0ubuntu3.11) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+Scanning processes... [                                                        ]Scanning processes... [                                                        ]Scanning processes... [                                                        ]Scanning processes... [=                                                       ]Scanning processes... [=                                                       ]Scanning processes... [==                                                      ]Scanning processes... [==                                                      ]Scanning processes... [===                                                     ]Scanning processes... [===                                                     ]Scanning processes... [====                                                    ]Scanning processes... [====                                                    ]Scanning processes... [=====                                                   ]Scanning processes... [=====                                                   ]Scanning processes... [======                                                  ]Scanning processes... [======                                                  ]Scanning processes... [=======                                                 ]Scanning processes... [=======                                                 ]Scanning processes... [========                                                ]Scanning processes... [========                                                ]Scanning processes... [========                                                ]Scanning processes... [=========                                               ]Scanning processes... [=========                                               ]Scanning processes... [==========                                              ]Scanning processes... [==========                                              ]Scanning processes... [===========                                             ]Scanning processes... [===========                                             ]Scanning processes... [============                                            ]Scanning processes... [============                                            ]Scanning processes... [=============                                           ]Scanning processes... [=============                                           ]Scanning processes... [==============                                          ]Scanning processes... [==============                                          ]Scanning processes... [===============                                         ]Scanning processes... [===============                                         ]Scanning processes... [================                                        ]Scanning processes... [================                                        ]Scanning processes... [================                                        ]Scanning processes... [=================                                       ]Scanning processes... [=================                                       ]Scanning processes... [==================                                      ]Scanning processes... [==================                                      ]Scanning processes... [===================                                     ]Scanning processes... [===================                                     ]Scanning processes... [====================                                    ]Scanning processes... [====================                                    ]Scanning processes... [=====================                                   ]Scanning processes... [=====================                                   ]Scanning processes... [======================                                  ]Scanning processes... [======================                                  ]Scanning processes... [=======================                                 ]Scanning processes... [=======================                                 ]Scanning processes... [========================                                ]Scanning processes... [========================                                ]Scanning processes... [========================                                ]Scanning processes... [=========================                               ]Scanning processes... [=========================                               ]Scanning processes... [==========================                              ]Scanning processes... [==========================                              ]Scanning processes... [===========================                             ]Scanning processes... [===========================                             ]Scanning processes... [============================                            ]Scanning processes... [============================                            ]Scanning processes... [=============================                           ]Scanning processes... [=============================                           ]Scanning processes... [==============================                          ]Scanning processes... [==============================                          ]Scanning processes... [===============================                         ]Scanning processes... [===============================                         ]Scanning processes... [================================                        ]Scanning processes... [================================                        ]Scanning processes... [================================                        ]Scanning processes... [=================================                       ]Scanning processes... [=================================                       ]Scanning processes... [==================================                      ]Scanning processes... [==================================                      ]Scanning processes... [===================================                     ]Scanning processes... [===================================                     ]Scanning processes... [====================================                    ]Scanning processes... [====================================                    ]Scanning processes... [=====================================                   ]Scanning processes... [=====================================                   ]Scanning processes... [======================================                  ]Scanning processes... [======================================                  ]Scanning processes... [=======================================                 ]Scanning processes... [=======================================                 ]Scanning processes... [========================================                ]Scanning processes... [========================================                ]Scanning processes... [========================================                ]Scanning processes... [=========================================               ]Scanning processes... [=========================================               ]Scanning processes... [==========================================              ]Scanning processes... [==========================================              ]Scanning processes... [===========================================             ]Scanning processes... [===========================================             ]Scanning processes... [============================================            ]Scanning processes... [============================================            ]Scanning processes... [=============================================           ]Scanning processes... [=============================================           ]Scanning processes... [==============================================          ]Scanning processes... [==============================================          ]Scanning processes... [===============================================         ]Scanning processes... [===============================================         ]Scanning processes... [================================================        ]Scanning processes... [================================================        ]Scanning processes... [================================================        ]Scanning processes... [=================================================       ]Scanning processes... [=================================================       ]Scanning processes... [==================================================      ]Scanning processes... [==================================================      ]Scanning processes... [===================================================     ]Scanning processes... [===================================================     ]Scanning processes... [====================================================    ]Scanning processes... [====================================================    ]Scanning processes... [=====================================================   ]Scanning processes... [=====================================================   ]Scanning processes... [======================================================  ]Scanning processes... [======================================================  ]Scanning processes... [======================================================= ]Scanning processes... [======================================================= ]Scanning processes... [========================================================]Scanning processes...                                                           
+Scanning candidates... [                                                       ]Scanning candidates... [==================                                     ]Scanning candidates... [====================================                   ]Scanning candidates... [=======================================================]Scanning candidates...                                                          
+Scanning linux images... [                                                     ]Scanning linux images... [=============                                        ]Scanning linux images... [==========================                           ]Scanning linux images... [=======================================              ]Scanning linux images... [=====================================================]Scanning linux images...                                                        
+Pending kernel upgrade
+----------------------
+
+Newer kernel available
+
+The currently running kernel version is 5.15.0-160-generic which is not the 
+expected kernel version 5.15.0-163-generic.
+
+Restarting the system to load the new kernel will not be handled automatically, 
+so you should consider rebooting.
+
+
+Restarting services...
+Daemons using outdated libraries
+--------------------------------
+
+
+  1. fail2ban.service             3. unattended-upgrades.service
+  2. networkd-dispatcher.service  4. none of the above
+
+(Enter the items or ranges you want to select, separated by spaces.)
+
+Which services should be restarted? ð️ Настройка PostgreSQL...
+client_loop: send disconnect: Broken pipe
+send: spawn id exp7 not open
+    while executing
+"send "sudo -u postgres psql -c \"SELECT 1 FROM pg_roles WHERE rolname='calorio_user'\" | grep -q 1 || sudo -u postgres psql -c \"CREATE USER calorio_u..."
+    (file "deploy_to_server.exp" line 47)

@@ -1,0 +1,144 @@
+#!/usr/bin/expect -f
+# Скрипт автоматического деплоя через expect
+# Использование: expect deploy_to_server.exp
+
+set timeout 300
+set server "217.26.29.106"
+set user "root"
+set password "C&6!wMqm!wOZ"
+
+puts "=========================================="
+puts "Автоматический деплой Calorio API"
+puts "=========================================="
+puts ""
+
+# Подключение к серверу
+spawn ssh -o StrictHostKeyChecking=no $user@$server
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    timeout {
+        puts "Timeout при подключении"
+        exit 1
+    }
+}
+
+expect {
+    "#" {
+        puts "\n✅ Подключение успешно\n"
+    }
+    timeout {
+        puts "Timeout при ожидании приглашения"
+        exit 1
+    }
+}
+
+# Установка необходимого ПО
+puts "📦 Установка необходимого ПО..."
+send "apt update && apt install -y python3.11 python3.11-venv python3.11-dev git nginx postgresql postgresql-contrib build-essential libpq-dev curl\r"
+expect "#"
+
+# Настройка PostgreSQL
+puts "🗄️ Настройка PostgreSQL..."
+send "sudo -u postgres psql -c \"SELECT 1 FROM pg_database WHERE datname='calorio'\" | grep -q 1 || sudo -u postgres psql -c \"CREATE DATABASE calorio;\"\r"
+expect "#"
+send "sudo -u postgres psql -c \"SELECT 1 FROM pg_roles WHERE rolname='calorio_user'\" | grep -q 1 || sudo -u postgres psql -c \"CREATE USER calorio_user WITH PASSWORD 'calorio_secure_2024';\"\r"
+expect "#"
+send "sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE calorio TO calorio_user;\"\r"
+expect "#"
+
+# Создание пользователя
+puts "👤 Создание пользователя calorio..."
+send "id -u calorio &>/dev/null || useradd -m -s /bin/bash calorio\r"
+expect "#"
+send "mkdir -p /var/www/calorio && chown calorio:calorio /var/www/calorio\r"
+expect "#"
+
+# Клонирование/обновление репозитория
+puts "📥 Клонирование репозитория..."
+send "cd /var/www/calorio\r"
+expect "#"
+send "if \[ -d .git \]; then sudo -u calorio git pull origin main; else sudo -u calorio git clone https://github.com/moschin777-bot/calorio.git .; fi\r"
+expect "#"
+
+# Создание виртуального окружения
+puts "🐍 Настройка виртуального окружения..."
+send "sudo -u calorio bash -c 'cd /var/www/calorio && if \[ ! -d venv \]; then python3.11 -m venv venv; fi'\r"
+expect "#"
+
+# Установка зависимостей
+puts "📚 Установка зависимостей..."
+send "sudo -u calorio bash -c 'cd /var/www/calorio && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt'\r"
+expect "#"
+
+# Настройка .env
+puts "⚙️ Настройка .env файла..."
+send "sudo -u calorio bash -c 'cd /var/www/calorio && if \[ ! -f .env \]; then cat > .env << ENVEOF\nSECRET_KEY=django-prod-key-$(openssl rand -hex 32)\nDEBUG=False\nALLOWED_HOSTS=217.26.29.106,colories.ru,www.colories.ru\nDATABASE_URL=postgresql://calorio_user:calorio_secure_2024@localhost:5432/calorio\nOPENROUTER_API_KEY=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\nPAYMENT_WEBHOOK_SECRET=webhook-$(openssl rand -hex 16)\nCORS_ALLOWED_ORIGINS=https://colories.ru,https://www.colories.ru,http://colories.ru,http://www.colories.ru\nENVEOF\nfi'\r"
+expect "#"
+
+# Применение миграций
+puts "🔄 Применение миграций..."
+send "sudo -u calorio bash -c 'cd /var/www/calorio && source venv/bin/activate && python manage.py migrate --noinput'\r"
+expect "#"
+
+# Сбор статических файлов
+puts "📦 Сбор статических файлов..."
+send "sudo -u calorio bash -c 'cd /var/www/calorio && source venv/bin/activate && python manage.py collectstatic --noinput'\r"
+expect "#"
+
+# Создание директории для логов
+send "sudo -u calorio mkdir -p /var/www/calorio/logs\r"
+expect "#"
+
+# Настройка systemd service
+puts "🔧 Настройка systemd service..."
+send "cat > /etc/systemd/system/calorio.service << 'SERVICEEOF'\n\[Unit\]\nDescription=Calorio API Gunicorn daemon\nAfter=network.target\n\n\[Service\]\nType=notify\nUser=calorio\nGroup=calorio\nWorkingDirectory=/var/www/calorio\nEnvironment=\"PATH=/var/www/calorio/venv/bin\"\nExecStart=/var/www/calorio/venv/bin/gunicorn --workers 3 --bind unix:/var/www/calorio/gunicorn.sock --timeout 120 --access-logfile /var/www/calorio/logs/gunicorn-access.log --error-logfile /var/www/calorio/logs/gunicorn-error.log --log-level info calorio_api.wsgi:application\n\n\[Install\]\nWantedBy=multi-user.target\nSERVICEEOF\r"
+expect "#"
+
+send "systemctl daemon-reload\r"
+expect "#"
+send "systemctl enable calorio\r"
+expect "#"
+send "systemctl restart calorio\r"
+expect "#"
+
+# Настройка Nginx
+puts "🌐 Настройка Nginx..."
+send "cat > /etc/nginx/sites-available/calorio << 'NGINXEOF'\nupstream calorio_app \{\n    server unix:/var/www/calorio/gunicorn.sock fail_timeout=0;\n\}\n\nserver \{\n    listen 80;\n    server_name 217.26.29.106 colories.ru www.colories.ru;\n    client_max_body_size 10M;\n\n    location /static/ \{\n        alias /var/www/calorio/staticfiles/;\n    \}\n\n    location /media/ \{\n        alias /var/www/calorio/media/;\n    \}\n\n    location / \{\n        proxy_pass http://calorio_app;\n        proxy_set_header Host \$host;\n        proxy_set_header X-Real-IP \$remote_addr;\n        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto \$scheme;\n        proxy_redirect off;\n    \}\n\}\nNGINXEOF\r"
+expect "#"
+
+send "ln -sf /etc/nginx/sites-available/calorio /etc/nginx/sites-enabled/calorio\r"
+expect "#"
+send "rm -f /etc/nginx/sites-enabled/default\r"
+expect "#"
+send "nginx -t\r"
+expect "#"
+send "systemctl restart nginx\r"
+expect "#"
+
+# Проверка статуса
+puts "\n✅ Проверка статуса сервисов...\n"
+send "systemctl status calorio --no-pager | head -n 10\r"
+expect "#"
+send "systemctl status nginx --no-pager | head -n 10\r"
+expect "#"
+
+# Проверка API
+puts "\n🔍 Проверка API...\n"
+send "sleep 3 && curl -s http://localhost/api/health/ || echo 'API не отвечает'\r"
+expect "#"
+
+puts "\n=========================================="
+puts "✅ Деплой завершён!"
+puts "=========================================="
+puts ""
+puts "Проверьте работу API:"
+puts "  curl http://217.26.29.106/api/health/"
+puts "  curl http://colories.ru/api/health/"
+puts ""
+
+send "exit\r"
+expect eof
+
