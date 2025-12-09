@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "grep -A 2 'proxy_set_header Host' /etc/nginx/sites-available/calorio\r"
+expect "#"
+
+send "cat /etc/nginx/sites-available/calorio | grep -A 5 'location /'\r"
+expect "#"
+
+send "systemctl restart nginx\r"
+expect "#"
+
+send "sleep 3\r"
+expect "#"
+
+send "curl -s http://localhost/api/health/\r"
+expect "#"
+
+send "journalctl -u calorio -n 3 --no-pager | grep -i host\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "cat /etc/nginx/sites-available/calorio\r"
+expect "#"
+
+send "nginx -t\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

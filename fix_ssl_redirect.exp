@@ -1,0 +1,37 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "cat >> /var/www/calorio/.env <<'EOF'\r"
+expect ">"
+send "SECURE_SSL_REDIRECT=False\r"
+expect ">"
+send "EOF\r"
+expect "#"
+
+send "cat /var/www/calorio/.env\r"
+expect "#"
+
+send "systemctl restart calorio\r"
+expect "#"
+
+send "sleep 5\r"
+expect "#"
+
+send "curl -s http://localhost/api/health/\r"
+expect "#"
+
+send "curl -s http://217.26.29.106/api/health/\r"
+expect "#"
+
+send "curl -s -X POST http://localhost/api/auth/register/ -H 'Content-Type: application/json' -d '{\"first_name\":\"Test\",\"email\":\"test@example.com\",\"password\":\"testpass123\"}'\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

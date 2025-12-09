@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "cat /etc/systemd/system/calorio.service\r"
+expect "#"
+
+send "systemctl daemon-reload\r"
+expect "#"
+
+send "systemctl restart calorio\r"
+expect "#"
+
+send "sleep 5\r"
+expect "#"
+
+send "curl -s http://localhost/api/health/\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

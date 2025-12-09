@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "systemctl status calorio --no-pager | head -n 10\r"
+expect "#"
+
+send "systemctl status nginx --no-pager | head -n 10\r"
+expect "#"
+
+send "curl -v --unix-socket /var/www/calorio/gunicorn.sock http://localhost/api/health/ 2>&1 | head -n 20\r"
+expect "#"
+
+send "curl -s -H 'Host: localhost' http://localhost/api/health/\r"
+expect "#"
+
+send "echo \"Response above\"\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

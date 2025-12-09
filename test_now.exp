@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "curl -s http://217.26.29.106/api/health/ && echo \"\"\r"
+expect "#"
+
+send "sleep 2\r"
+expect "#"
+
+send "journalctl -u calorio --since '1 minute ago' --no-pager | tail -n 10\r"
+expect "#"
+
+send "curl -s http://localhost/api/health/ && echo \"\"\r"
+expect "#"
+
+send "sleep 2\r"
+expect "#"
+
+send "journalctl -u calorio --since '30 seconds ago' --no-pager | tail -n 10\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

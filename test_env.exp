@@ -1,0 +1,33 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "su - calorio\r"
+expect "$"
+
+send "cd /var/www/calorio\r"
+expect "$"
+
+send "source venv/bin/activate\r"
+expect "$"
+
+send "python manage.py shell << 'PYEOF'\r"
+send "import os\r"
+send "from dotenv import load_dotenv\r"
+send "load_dotenv()\r"
+send "print('ALLOWED_HOSTS:', os.getenv('ALLOWED_HOSTS'))\r"
+send "print('DEBUG:', os.getenv('DEBUG'))\r"
+send "PYEOF\r"
+expect "$"
+
+send "exit\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

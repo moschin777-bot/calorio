@@ -1,0 +1,40 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "journalctl -u calorio -n 5 --no-pager | grep -i host\r"
+expect "#"
+
+send "su - calorio\r"
+expect "$"
+
+send "cd /var/www/calorio && source venv/bin/activate\r"
+expect "$"
+
+send "python manage.py shell << 'PYEOF'\r"
+send "import os\r"
+send "from dotenv import load_dotenv\r"
+send "load_dotenv()\r"
+send "print('ALLOWED_HOSTS from env:', repr(os.getenv('ALLOWED_HOSTS')))\r"
+send "from django.conf import settings\r"
+send "print('ALLOWED_HOSTS from settings:', settings.ALLOWED_HOSTS)\r"
+send "PYEOF\r"
+expect "$"
+
+send "exit\r"
+expect "#"
+
+send "curl -H 'Host: localhost' http://localhost/api/health/\r"
+expect "#"
+
+send "curl -H 'Host: 217.26.29.106' http://localhost/api/health/\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

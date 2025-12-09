@@ -1,0 +1,21 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "systemctl status calorio --no-pager\r"
+expect "#"
+
+send "journalctl -u calorio -n 30 --no-pager\r"
+expect "#"
+
+send "tail -n 30 /var/www/calorio/logs/gunicorn-error.log\r"
+expect "#"
+
+send "exit\r"
+expect eof
+

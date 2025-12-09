@@ -1,0 +1,68 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+
+spawn ssh root@217.26.29.106
+expect "password:"
+send "C&6!wMqm!wOZ\r"
+expect "#"
+
+send "cat > /etc/systemd/system/calorio.service <<'EOF'\r"
+expect ">"
+send "\[Unit\]\r"
+expect ">"
+send "Description=Calorio API Gunicorn daemon\r"
+expect ">"
+send "After=network.target\r"
+expect ">"
+send "\r"
+expect ">"
+send "\[Service\]\r"
+expect ">"
+send "Type=notify\r"
+expect ">"
+send "User=calorio\r"
+expect ">"
+send "Group=calorio\r"
+expect ">"
+send "WorkingDirectory=/var/www/calorio\r"
+expect ">"
+send "EnvironmentFile=/var/www/calorio/.env\r"
+expect ">"
+send "Environment=\"PATH=/var/www/calorio/venv/bin\"\r"
+expect ">"
+send "ExecStart=/var/www/calorio/venv/bin/gunicorn --workers 3 --bind unix:/var/www/calorio/gunicorn.sock --timeout 120 --access-logfile /var/www/calorio/logs/gunicorn-access.log --error-logfile /var/www/calorio/logs/gunicorn-error.log --log-level info calorio_api.wsgi:application\r"
+expect ">"
+send "\r"
+expect ">"
+send "\[Install\]\r"
+expect ">"
+send "WantedBy=multi-user.target\r"
+expect ">"
+send "EOF\r"
+expect "#"
+
+send "cat /etc/systemd/system/calorio.service\r"
+expect "#"
+
+send "systemctl daemon-reload\r"
+expect "#"
+
+send "systemctl restart calorio\r"
+expect "#"
+
+send "sleep 5\r"
+expect "#"
+
+send "systemctl status calorio --no-pager | head -n 15\r"
+expect "#"
+
+send "curl -s http://localhost/api/health/\r"
+expect "#"
+
+send "curl -s http://217.26.29.106/api/health/\r"
+expect "#"
+
+send "exit\r"
+expect eof
+
