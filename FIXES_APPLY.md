@@ -40,6 +40,14 @@ cd /var/www/calorio
 ./scripts/deploy_server.sh
 ```
 
+Или скопируйте и выполните `APPLY_ON_SERVER.sh` на сервере:
+```bash
+# На сервере:
+cd /var/www/calorio
+chmod +x APPLY_ON_SERVER.sh
+./APPLY_ON_SERVER.sh
+```
+
 ### Вариант 2: Прямая загрузка (если Git не работает)
 
 ```bash
