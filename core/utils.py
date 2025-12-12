@@ -55,33 +55,46 @@ def calculate_tdee(bmr, activity_level):
     return tdee
 
 
-def calculate_macros(calories):
+def calculate_macros(calories, weight=None):
     """
     Расчёт макронутриентов (белки, жиры, углеводы) на основе калорий
     
-    Используется стандартное распределение:
-    - Белки: 30% калорий (4 ккал/г)
-    - Жиры: 30% калорий (9 ккал/г)
-    - Углеводы: 40% калорий (4 ккал/г)
+    Используется оптимальное распределение для здорового питания:
+    - Белки: 1.6-2.2 г на кг веса (минимум 30% калорий, 4 ккал/г)
+    - Жиры: 25-35% калорий (9 ккал/г)
+    - Углеводы: остаток калорий (4 ккал/г)
+    
+    Точные значения калорийности:
+    - Белки: 4 ккал/г
+    - Жиры: 9 ккал/г
+    - Углеводы: 4 ккал/г
     
     Args:
         calories: целевые калории в ккал
+        weight: вес в кг (опционально, для более точного расчёта белков)
     
     Returns:
         dict с ключами 'proteins', 'fats', 'carbohydrates' в граммах
     """
-    # Белки: 30% калорий
-    proteins_calories = calories * 0.30
-    proteins = proteins_calories / 4  # 4 ккал на грамм белка
+    # Рассчитываем белки
+    if weight:
+        # Оптимальное количество белка: 1.8 г на кг веса
+        proteins = weight * 1.8
+        proteins_calories = proteins * 4  # 4 ккал на грамм белка
+    else:
+        # Если вес не указан, используем 30% калорий
+        proteins_calories = calories * 0.30
+        proteins = proteins_calories / 4
     
-    # Жиры: 30% калорий
+    # Жиры: 30% калорий (оптимально для здоровья)
     fats_calories = calories * 0.30
     fats = fats_calories / 9  # 9 ккал на грамм жира
     
-    # Углеводы: 40% калорий
-    carbs_calories = calories * 0.40
+    # Углеводы: остаток калорий
+    carbs_calories = calories - proteins_calories - fats_calories
     carbohydrates = carbs_calories / 4  # 4 ккал на грамм углеводов
     
+    # Округляем до 2 знаков после запятой
     return {
         'proteins': round(Decimal(str(proteins)), 2),
         'fats': round(Decimal(str(fats)), 2),
@@ -124,8 +137,8 @@ def auto_calculate_goals(weight, height, age, activity_level, gender='male', goa
     # Округляем до целого
     calories = int(round(calories))
     
-    # Рассчитываем макронутриенты
-    macros = calculate_macros(calories)
+    # Рассчитываем макронутриенты с учётом веса для более точного расчёта белков
+    macros = calculate_macros(calories, weight=weight)
     
     return {
         'calories': calories,

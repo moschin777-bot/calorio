@@ -85,7 +85,7 @@ ROOT_URLCONF = 'calorio_api.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'frontend' / 'dist'],  # React build directory
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -166,6 +166,12 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Frontend static files
+FRONTEND_BUILD_DIR = BASE_DIR / 'frontend' / 'dist'
+STATICFILES_DIRS = [
+    FRONTEND_BUILD_DIR / 'assets',
+] if FRONTEND_BUILD_DIR.exists() else []
 
 # Media files
 MEDIA_URL = '/media/'
@@ -264,10 +270,14 @@ LOGGING = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,https://colorios.ru,http://colorios.ru').split(',')
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# CORS для всех доменов в development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # JWT settings
 from datetime import timedelta
@@ -285,6 +295,7 @@ SIMPLE_JWT = {
 
 # OpenRouter API settings
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
+SITE_URL = os.getenv('SITE_URL', 'http://217.26.29.106')
 
 # Payment Provider Webhook Secret (для проверки подписи webhook)
 PAYMENT_WEBHOOK_SECRET = os.getenv('PAYMENT_WEBHOOK_SECRET', '')

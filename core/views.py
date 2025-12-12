@@ -1,428 +1,300 @@
-from rest_framework import viewsets, permissions, status, filters
-from rest_framework.response import Response
-from rest_framework.views import APIView
+"""
+Views for core app.
+"""
+from rest_framework import viewsets, status, generics
 from rest_framework.decorators import action
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.utils.dateparse import parse_date
-from django.shortcuts import get_object_or_404
-from django.conf import settings
-from django.db.models import Q
+from django.utils import timezone
+from django.db.models import Sum, Q
+from decimal import Decimal
+from datetime import date as date_type
+
 from .models import Dish, DailyGoal, Meal
 from .serializers import (
     DishSerializer, 
     DailyGoalSerializer, 
-    DishRecognitionSerializer,
-    AutoCalculateGoalsSerializer
+    AutoCalculateGoalsSerializer,
+    DishRecognitionSerializer
 )
-from .throttles import DishRecognitionThrottle
 from .utils import auto_calculate_goals
-import base64
-import json
-import logging
-from openai import OpenAI
-
-logger = logging.getLogger(__name__)
+from django.views.generic import TemplateView
+from django.conf import settings
+from django.views.decorators.cache import never_cache
+from pathlib import Path
 
 
-class DishPagination(PageNumberPagination):
-    """Пагинация для блюд"""
-    page_size = 20
-    page_size_query_param = 'page_size'
-    max_page_size = 100
+class ReactAppView(TemplateView):
+    """View to serve React app for all non-API routes."""
+    template_name = 'index.html'
+    
+    @never_cache
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+    
+    def get_template_names(self):
+        """Return template path based on whether frontend is built."""
+        frontend_dir = Path(settings.BASE_DIR) / 'frontend' / 'dist'
+        if (frontend_dir / 'index.html').exists():
+            return ['index.html']
+        # Fallback if frontend not built yet
+        return ['index.html']
 
 
 class DishViewSet(viewsets.ModelViewSet):
-    """ViewSet для управления блюдами с поиском, фильтрацией и пагинацией"""
-    queryset = Dish.objects.all()
+    """ViewSet для управления блюдами"""
     serializer_class = DishSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    pagination_class = DishPagination
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name']
-    ordering_fields = ['created_at', 'calories', 'proteins', 'fats', 'carbohydrates']
-    ordering = ['-created_at']
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Возвращаем только блюда текущего пользователя с фильтрацией"""
-        queryset = Dish.objects.filter(user=self.request.user).select_related('meal', 'user')
+        """Возвращает только блюда текущего пользователя"""
+        user = self.request.user
+        queryset = Dish.objects.filter(user=user).select_related('meal')
         
-        # Фильтрация по дате
+        # Фильтрация по дате через query параметр
         date_param = self.request.query_params.get('date', None)
         if date_param:
             try:
                 date_obj = parse_date(date_param)
-                if date_obj is None:
-                    return Dish.objects.none()
-                # Фильтруем по дате через связанный Meal
-                queryset = queryset.filter(meal__date=date_obj)
+                if date_obj:
+                    queryset = queryset.filter(meal__date=date_obj)
             except (ValueError, TypeError):
-                return Dish.objects.none()
+                pass
         
-        # Фильтрация по типу приёма пищи
-        meal_type_param = self.request.query_params.get('meal_type', None)
-        if meal_type_param:
-            queryset = queryset.filter(meal__meal_type=meal_type_param)
+        return queryset.order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """Создание блюда с привязкой к пользователю и приёму пищи"""
+        user = self.request.user
+        date_str = serializer.validated_data.get('date')
+        meal_type = serializer.validated_data.get('meal_type')
         
-        # Поиск по названию (через search_fields уже реализован, но можно добавить дополнительную логику)
-        search_param = self.request.query_params.get('search', None)
-        if search_param:
-            queryset = queryset.filter(name__icontains=search_param)
+        if not date_str or not meal_type:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Дата и тип приёма пищи обязательны.")
         
-        return queryset
+        # Парсим дату
+        date_obj = parse_date(str(date_str))
+        if not date_obj:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Неверный формат даты. Используйте YYYY-MM-DD.")
+        
+        # Находим или создаём приём пищи
+        meal, created = Meal.objects.get_or_create(
+            user=user,
+            date=date_obj,
+            meal_type=meal_type,
+            defaults={}
+        )
+        
+        # Создаём блюдо
+        serializer.save(user=user, meal=meal)
     
     def get_object(self):
-        """Получение конкретного блюда с проверкой прав доступа"""
-        obj = get_object_or_404(self.get_queryset(), pk=self.kwargs['pk'])
-        # Дополнительная проверка, что блюдо принадлежит пользователю
+        """Получение объекта с проверкой прав доступа"""
+        obj = super().get_object()
         if obj.user != self.request.user:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("У вас нет прав для выполнения этого действия.")
         return obj
+
+
+class DailyGoalView(generics.RetrieveUpdateAPIView, generics.CreateAPIView):
+    """View для получения и создания/обновления целей КБЖУ на день"""
+    serializer_class = DailyGoalSerializer
+    permission_classes = [IsAuthenticated]
     
-    def perform_create(self, serializer):
-        """При создании блюда создаём или находим Meal и связываем с пользователем"""
-        user = self.request.user
-        date = serializer.validated_data.pop('date')
-        meal_type = serializer.validated_data.pop('meal_type')
+    def get_object(self):
+        """Получение цели на указанную дату"""
+        date_str = self.kwargs.get('date')
+        date_obj = parse_date(date_str)
         
-        # Получаем или создаём Meal для указанной даты и типа
-        meal, created = Meal.objects.get_or_create(
-            user=user,
-            date=date,
-            meal_type=meal_type,
-            defaults={'user': user, 'date': date, 'meal_type': meal_type}
+        if not date_obj:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]})
+        
+        try:
+            goal = DailyGoal.objects.get(user=self.request.user, date=date_obj)
+            return goal
+        except DailyGoal.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Цель на указанную дату не найдена.")
+    
+    def post(self, request, *args, **kwargs):
+        """Создание или обновление цели (upsert)"""
+        date_str = kwargs.get('date')
+        date_obj = parse_date(date_str)
+        
+        if not date_obj:
+            return Response(
+                {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, существует ли цель
+        goal, created = DailyGoal.objects.get_or_create(
+            user=request.user,
+            date=date_obj,
+            defaults={}
         )
         
-        # Устанавливаем значения по умолчанию для необязательных полей
-        # Обязательные: date, meal_type, name
-        # Остальные по умолчанию 0 (weight не может быть 0, поэтому 1)
-        weight = serializer.validated_data.get('weight')
-        if weight is None:
-            weight = 1  # weight не может быть 0, минимальное значение 1
+        serializer = self.get_serializer(goal, data=request.data, partial=False)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         
-        calories = serializer.validated_data.get('calories', 0)
-        proteins = serializer.validated_data.get('proteins', 0)
-        fats = serializer.validated_data.get('fats', 0)
-        carbohydrates = serializer.validated_data.get('carbohydrates', 0)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(serializer.data, status=status_code)
+
+
+class AutoCalculateGoalsView(generics.CreateAPIView):
+    """View для автоматического расчёта целей КБЖУ"""
+    serializer_class = AutoCalculateGoalsSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        """Расчёт и сохранение целей"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
-        # Преобразуем None в Decimal для consistency
-        from decimal import Decimal
-        if proteins is None:
-            proteins = Decimal('0.00')
-        else:
-            proteins = Decimal(str(proteins))
-        if fats is None:
-            fats = Decimal('0.00')
-        else:
-            fats = Decimal(str(fats))
-        if carbohydrates is None:
-            carbohydrates = Decimal('0.00')
-        else:
-            carbohydrates = Decimal(str(carbohydrates))
+        validated_data = serializer.validated_data
+        date_obj = validated_data['date']
         
-        serializer.save(
-            user=user,
-            meal=meal,
-            weight=weight,
-            calories=calories,
-            proteins=proteins,
-            fats=fats,
-            carbohydrates=carbohydrates
+        # Рассчитываем цели
+        calculated = auto_calculate_goals(
+            weight=float(validated_data['weight']),
+            height=validated_data['height'],
+            age=validated_data['age'],
+            activity_level=validated_data['activity_level'],
+            gender=validated_data.get('gender', 'male'),
+            goal=validated_data.get('goal', 'maintain')
         )
-    
-    def perform_update(self, serializer):
-        """При обновлении блюда обновляем связь с Meal, если изменились date или meal_type"""
-        instance = self.get_object()
-        user = self.request.user
         
-        # Проверяем, изменились ли date или meal_type
-        date = serializer.validated_data.get('date')
-        meal_type = serializer.validated_data.get('meal_type')
+        # Создаём или обновляем цель
+        goal, created = DailyGoal.objects.update_or_create(
+            user=request.user,
+            date=date_obj,
+            defaults={
+                'calories': calculated['calories'],
+                'proteins': calculated['proteins'],
+                'fats': calculated['fats'],
+                'carbohydrates': calculated['carbohydrates'],
+                'is_auto_calculated': True
+            }
+        )
         
-        # Если date или meal_type не указаны, используем текущие значения из Meal
-        if date is None and instance.meal:
-            date = instance.meal.date
-        if meal_type is None and instance.meal:
-            meal_type = instance.meal.meal_type
-        
-        # Если date или meal_type изменились, обновляем Meal
-        if date and meal_type:
-            if not instance.meal or instance.meal.date != date or instance.meal.meal_type != meal_type:
-                meal, created = Meal.objects.get_or_create(
-                    user=user,
-                    date=date,
-                    meal_type=meal_type,
-                    defaults={'user': user, 'date': date, 'meal_type': meal_type}
-                )
-                serializer.save(meal=meal)
-            else:
-                serializer.save()
-        else:
-            serializer.save()
-    
-    def destroy(self, request, *args, **kwargs):
-        """Удаление блюда с проверкой прав доступа"""
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response_serializer = DailyGoalSerializer(goal)
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(response_serializer.data, status=status_code)
 
 
-class DailyGoalView(APIView):
-    """API для получения и создания/обновления целей КБЖУ на день"""
-    permission_classes = [permissions.IsAuthenticated]
+class DayDataView(generics.RetrieveAPIView):
+    """View для получения всех данных за день"""
+    permission_classes = [IsAuthenticated]
     
-    def get(self, request, date):
-        """
-        Получение цели КБЖУ на указанную дату
-        GET /api/goals/{date}/
-        """
-        try:
-            date_obj = parse_date(date)
-            if date_obj is None:
-                return Response(
-                    {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (ValueError, TypeError):
+    def get(self, request, *args, **kwargs):
+        """Получение данных за день"""
+        date_str = kwargs.get('date')
+        date_obj = parse_date(date_str)
+        
+        if not date_obj:
             return Response(
                 {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        try:
-            goal = DailyGoal.objects.get(user=request.user, date=date_obj)
-            serializer = DailyGoalSerializer(goal)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except DailyGoal.DoesNotExist:
-            return Response(
-                {"detail": "Цель на указанную дату не найдена."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-    
-    def post(self, request, date):
-        """
-        Создание или обновление цели КБЖУ на указанную дату
-        POST /api/goals/{date}/
-        """
-        try:
-            date_obj = parse_date(date)
-            if date_obj is None:
-                return Response(
-                    {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (ValueError, TypeError):
-            return Response(
-                {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        user = request.user
         
-        # Проверяем, существует ли уже цель на эту дату
+        # Получаем цель
         try:
-            goal = DailyGoal.objects.get(user=request.user, date=date_obj)
-            created = False
-        except DailyGoal.DoesNotExist:
-            goal = None
-            created = True
-        
-        # Валидируем данные
-        serializer = DailyGoalSerializer(goal, data=request.data, partial=False)
-        
-        if serializer.is_valid():
-            serializer.save(user=request.user, date=date_obj, is_auto_calculated=False)
-            status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-            return Response(serializer.data, status=status_code)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class DayDataView(APIView):
-    """
-    API для получения всех данных за день
-    GET /api/days/{date}/
-    
-    Возвращает:
-    - Цель КБЖУ на день
-    - Блюда, сгруппированные по приёмам пищи
-    - Суммарную статистику КБЖУ
-    - Процент выполнения целей
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request, date):
-        """Получение данных за выбранный день"""
-        try:
-            date_obj = parse_date(date)
-            if date_obj is None:
-                return Response(
-                    {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (ValueError, TypeError):
-            return Response(
-                {"date": ["Неверный формат даты. Используйте YYYY-MM-DD."]},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Получаем цель на день (если есть)
-        try:
-            goal = DailyGoal.objects.get(user=request.user, date=date_obj)
+            goal = DailyGoal.objects.get(user=user, date=date_obj)
             goal_data = DailyGoalSerializer(goal).data
         except DailyGoal.DoesNotExist:
             goal_data = None
         
         # Получаем все блюда за день
-        dishes = Dish.objects.filter(
-            user=request.user,
-            meal__date=date_obj
-        ).select_related('meal')
+        meals = Meal.objects.filter(user=user, date=date_obj).prefetch_related('dishes')
         
         # Группируем блюда по типам приёмов пищи
         meals_data = {
             'breakfast': [],
             'lunch': [],
             'dinner': [],
-            'snack': [],
+            'snack': []
         }
         
-        for dish in dishes:
-            if dish.meal:
-                meal_type = dish.meal.meal_type
+        all_dishes = []
+        for meal in meals:
+            dishes = meal.dishes.all()
+            for dish in dishes:
                 dish_data = DishSerializer(dish).data
-                meals_data[meal_type].append(dish_data)
+                meals_data[meal.meal_type].append(dish_data)
+                all_dishes.append(dish)
         
         # Рассчитываем суммарные значения КБЖУ
-        # Используем Decimal для точных расчётов
-        from decimal import Decimal
-        total_calories = sum(dish.calories for dish in dishes)
-        total_proteins = sum(Decimal(str(dish.proteins)) for dish in dishes)
-        total_fats = sum(Decimal(str(dish.fats)) for dish in dishes)
-        total_carbohydrates = sum(Decimal(str(dish.carbohydrates)) for dish in dishes)
+        total_calories = sum(int(dish.calories or 0) for dish in all_dishes)
+        total_proteins = sum(float(dish.proteins or 0) for dish in all_dishes)
+        total_fats = sum(float(dish.fats or 0) for dish in all_dishes)
+        total_carbohydrates = sum(float(dish.carbohydrates or 0) for dish in all_dishes)
         
-        # Рассчитываем процент выполнения целей
+        # Рассчитываем проценты выполнения целей
         goal_progress = {
-            'calories_percent': 0,
-            'proteins_percent': 0,
-            'fats_percent': 0,
-            'carbohydrates_percent': 0,
+            'calories_percent': Decimal('0.0'),
+            'proteins_percent': Decimal('0.0'),
+            'fats_percent': Decimal('0.0'),
+            'carbohydrates_percent': Decimal('0.0'),
         }
         
         if goal_data:
-            if int(goal_data['calories']) > 0:
-                goal_progress['calories_percent'] = round(
-                    (total_calories / int(goal_data['calories'])) * 100, 2
-                )
-            if float(goal_data['proteins']) > 0:
-                goal_progress['proteins_percent'] = round(
-                    (float(total_proteins) / float(goal_data['proteins'])) * 100, 2
-                )
-            if float(goal_data['fats']) > 0:
-                goal_progress['fats_percent'] = round(
-                    (float(total_fats) / float(goal_data['fats'])) * 100, 2
-                )
-            if float(goal_data['carbohydrates']) > 0:
-                goal_progress['carbohydrates_percent'] = round(
-                    (float(total_carbohydrates) / float(goal_data['carbohydrates'])) * 100, 2
-                )
+            goal_calories = goal_data.get('calories', 0)
+            goal_proteins = float(goal_data.get('proteins', 0))
+            goal_fats = float(goal_data.get('fats', 0))
+            goal_carbohydrates = float(goal_data.get('carbohydrates', 0))
+            
+            if goal_calories > 0:
+                goal_progress['calories_percent'] = Decimal(str((total_calories / goal_calories) * 100))
+            if goal_proteins > 0:
+                goal_progress['proteins_percent'] = Decimal(str((total_proteins / goal_proteins) * 100))
+            if goal_fats > 0:
+                goal_progress['fats_percent'] = Decimal(str((total_fats / goal_fats) * 100))
+            if goal_carbohydrates > 0:
+                goal_progress['carbohydrates_percent'] = Decimal(str((total_carbohydrates / goal_carbohydrates) * 100))
         
-        # Формируем ответ
-        response_data = {
-            'date': date,
+        # Преобразуем Decimal в float для JSON сериализации
+        return Response({
+            'date': date_str,
             'goal': goal_data,
             'meals': meals_data,
             'summary': {
-                'total_calories': total_calories,
+                'total_calories': int(total_calories),
                 'total_proteins': float(total_proteins),
                 'total_fats': float(total_fats),
                 'total_carbohydrates': float(total_carbohydrates),
-                'goal_progress': goal_progress,
+                'goal_progress': {
+                    'calories_percent': float(goal_progress['calories_percent']),
+                    'proteins_percent': float(goal_progress['proteins_percent']),
+                    'fats_percent': float(goal_progress['fats_percent']),
+                    'carbohydrates_percent': float(goal_progress['carbohydrates_percent']),
+                }
             }
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
+        })
 
 
-class AutoCalculateGoalsView(APIView):
-    """
-    API для автоматического расчёта целей КБЖУ
-    POST /api/goals/auto-calculate/
-    """
-    permission_classes = [permissions.IsAuthenticated]
+class DishRecognitionView(generics.CreateAPIView):
+    """View для распознавания блюда по фотографии"""
+    serializer_class = DishRecognitionSerializer
+    permission_classes = [IsAuthenticated]
     
-    def post(self, request):
-        """
-        Автоматический расчёт целей КБЖУ на основе параметров пользователя
-        """
-        serializer = AutoCalculateGoalsSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Извлекаем валидированные данные
-        weight = float(serializer.validated_data['weight'])
-        height = serializer.validated_data['height']
-        age = serializer.validated_data['age']
-        activity_level = serializer.validated_data['activity_level']
-        gender = serializer.validated_data.get('gender', 'male')
-        goal = serializer.validated_data.get('goal', 'maintain')
-        date = serializer.validated_data['date']
-        
-        # Рассчитываем цели
-        calculated_goals = auto_calculate_goals(
-            weight=weight,
-            height=height,
-            age=age,
-            activity_level=activity_level,
-            gender=gender,
-            goal=goal
-        )
-        
-        # Создаём или обновляем цель на указанную дату
-        daily_goal, created = DailyGoal.objects.update_or_create(
-            user=request.user,
-            date=date,
-            defaults={
-                'calories': calculated_goals['calories'],
-                'proteins': calculated_goals['proteins'],
-                'fats': calculated_goals['fats'],
-                'carbohydrates': calculated_goals['carbohydrates'],
-                'is_auto_calculated': True,
-            }
-        )
-        
-        # Возвращаем результат
-        goal_serializer = DailyGoalSerializer(daily_goal)
-        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        return Response(goal_serializer.data, status=status_code)
-
-
-class DishRecognitionView(APIView):
-    """
-    API для распознавания блюда по фотографии
-    POST /api/dishes/recognize/
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    throttle_classes = [DishRecognitionThrottle]
-    
-    def post(self, request):
-        """
-        Распознавание блюда по изображению в формате base64
-        """
-        # Валидация входных данных
-        serializer = DishRecognitionSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, *args, **kwargs):
+        """Распознавание блюда через OpenRouter API"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
         image_base64 = serializer.validated_data['image_base64']
-        
-        # Получаем опциональные поля date и meal_type
-        from django.utils import timezone
-        suggested_date = serializer.validated_data.get('date')
-        if suggested_date is None:
-            suggested_date = timezone.now().date()
-        else:
-            suggested_date = suggested_date
-        
-        suggested_meal_type = serializer.validated_data.get('meal_type', '')
         
         # Извлекаем base64 данные (убираем префикс если есть)
         if ',' in image_base64:
@@ -430,181 +302,153 @@ class DishRecognitionView(APIView):
         else:
             base64_data = image_base64
         
-        # Декодируем base64
-        try:
-            image_bytes = base64.b64decode(base64_data)
-        except Exception as e:
-            logger.error(f"Ошибка декодирования base64: {e}")
-            return Response(
-                {"image_base64": ["Неверный формат base64."]},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Получаем API ключ из настроек
+        from django.conf import settings
+        api_key = getattr(settings, 'OPENROUTER_API_KEY', '')
         
-        # Формируем data URL для отправки в API
-        # Определяем MIME тип изображения
-        from PIL import Image
-        import io
-        try:
-            img = Image.open(io.BytesIO(image_bytes))
-            mime_type = f"image/{img.format.lower()}" if img.format else "image/jpeg"
-        except Exception as e:
-            logger.error(f"Ошибка определения типа изображения: {e}")
-            mime_type = "image/jpeg"  # По умолчанию
-        
-        image_data_url = f"data:{mime_type};base64,{base64_data}"
-        
-        # Проверяем наличие API ключа
-        if not settings.OPENROUTER_API_KEY:
-            logger.error("OPENROUTER_API_KEY не настроен")
+        if not api_key:
             return Response(
                 {"detail": "Сервис распознавания временно недоступен."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
         
-        # Инициализируем клиент OpenAI для OpenRouter
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=settings.OPENROUTER_API_KEY,
-        )
-        
-        # Промпт для распознавания блюда
-        prompt = """Проанализируй это изображение блюда и верни JSON с информацией о блюде.
-Требования к ответу:
-1. Ответ должен быть ТОЛЬКО валидным JSON объектом
-2. JSON должен содержать следующие поля:
-   - "name": строка с названием блюда
-   - "weight": целое число (примерная масса в граммах)
-   - "calories": целое число (калории в ккал)
-   - "proteins": число с плавающей точкой (белки в граммах)
-   - "fats": число с плавающей точкой (жиры в граммах)
-   - "carbohydrates": число с плавающей точкой (углеводы в граммах)
+        try:
+            import requests
+            import json
+            import base64
+            
+            # Декодируем изображение для проверки размера
+            image_bytes = base64.b64decode(base64_data)
+            
+            # Используем OpenRouter API с моделью для распознавания изображений
+            # Используем модель, которая поддерживает vision (например, gpt-4-vision-preview или claude-3-opus)
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": getattr(settings, 'SITE_URL', 'http://217.26.29.106'),
+            }
+            
+            # Формируем промпт для распознавания блюда
+            prompt = """Проанализируй это изображение еды и определи:
+1. Название блюда (на русском языке)
+2. Примерный вес порции в граммах
+3. Калории (ккал)
+4. Белки (г)
+5. Жиры (г)
+6. Углеводы (г)
 
-Пример правильного ответа:
+Ответь ТОЛЬКО в формате JSON без дополнительных комментариев:
 {
-  "name": "Куриная грудка с рисом",
-  "weight": 250,
-  "calories": 350,
-  "proteins": 35.5,
-  "fats": 8.2,
-  "carbohydrates": 30.0
+  "name": "название блюда",
+  "weight": вес_в_граммах,
+  "calories": калории,
+  "proteins": белки,
+  "fats": жиры,
+  "carbohydrates": углеводы
 }
 
-ВАЖНО: Верни ТОЛЬКО JSON, без дополнительного текста, объяснений или markdown разметки."""
-        
-        # Пытаемся получить валидный JSON (до 3 попыток)
-        max_attempts = 3
-        last_error = None
-        
-        for attempt in range(max_attempts):
-            try:
-                completion = client.chat.completions.create(
-                    extra_headers={
-                        "HTTP-Referer": "https://calorio.app",
-                        "X-Title": "Calorio",
-                    },
-                    model="google/gemini-2.0-flash-exp:free",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": prompt
-                                },
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": image_data_url
-                                    }
+Если не можешь определить точные значения, используй реалистичные оценки на основе типичных значений для подобных блюд."""
+            
+            payload = {
+                "model": "openai/gpt-4o",  # Используем GPT-4o для лучшего распознавания
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_data}"
                                 }
-                            ]
-                        }
-                    ]
-                )
+                            }
+                        ]
+                    }
+                ],
+                "max_tokens": 500,
+                "temperature": 0.3,  # Низкая температура для более точных результатов
+            }
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            # Извлекаем ответ из API
+            if 'choices' in result and len(result['choices']) > 0:
+                content = result['choices'][0]['message']['content']
                 
-                response_text = completion.choices[0].message.content.strip()
-                
-                # Пытаемся извлечь JSON из ответа (может быть обернут в markdown или текст)
+                # Парсим JSON из ответа
+                import re
+                # Ищем JSON в ответе (более надёжный способ)
                 # Убираем markdown код блоки если есть
-                if response_text.startswith("```"):
-                    # Убираем первую строку с ```json или ```
-                    lines = response_text.split('\n')
-                    if lines[0].startswith('```'):
-                        lines = lines[1:]
-                    # Убираем последнюю строку с ```
-                    if lines and lines[-1].strip() == '```':
-                        lines = lines[:-1]
-                    response_text = '\n'.join(lines)
+                content_cleaned = content.replace('```json', '').replace('```', '').strip()
                 
-                # Парсим JSON
-                try:
-                    result_json = json.loads(response_text)
+                # Пробуем найти JSON объект (может быть вложенным)
+                json_match = None
+                # Сначала пробуем найти между первыми { и последними }
+                start_idx = content_cleaned.find('{')
+                end_idx = content_cleaned.rfind('}')
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = content_cleaned[start_idx:end_idx+1]
+                    json_match = type('obj', (object,), {'group': lambda: json_str})()
+                
+                if json_match:
+                    try:
+                        dish_data = json.loads(json_match.group())
+                    except json.JSONDecodeError:
+                        # Если не получилось, пробуем очистить строку от markdown
+                        cleaned = json_match.group().replace('```json', '').replace('```', '').strip()
+                        dish_data = json.loads(cleaned)
                     
-                    # Валидируем структуру JSON
-                    required_fields = ['name', 'weight', 'calories', 'proteins', 'fats', 'carbohydrates']
-                    if not all(field in result_json for field in required_fields):
-                        raise ValueError("Отсутствуют обязательные поля в JSON")
-                    
-                    # Проверяем типы данных
-                    if not isinstance(result_json['name'], str):
-                        raise ValueError("Поле 'name' должно быть строкой")
-                    if not isinstance(result_json['weight'], int) or result_json['weight'] < 1:
-                        raise ValueError("Поле 'weight' должно быть целым числом >= 1")
-                    if not isinstance(result_json['calories'], int) or result_json['calories'] < 0:
-                        raise ValueError("Поле 'calories' должно быть целым числом >= 0")
-                    if not isinstance(result_json['proteins'], (int, float)) or result_json['proteins'] < 0:
-                        raise ValueError("Поле 'proteins' должно быть числом >= 0")
-                    if not isinstance(result_json['fats'], (int, float)) or result_json['fats'] < 0:
-                        raise ValueError("Поле 'fats' должно быть числом >= 0")
-                    if not isinstance(result_json['carbohydrates'], (int, float)) or result_json['carbohydrates'] < 0:
-                        raise ValueError("Поле 'carbohydrates' должно быть числом >= 0")
-                    
-                    # Формируем ответ согласно документации API
-                    # Добавляем confidence (уверенность распознавания)
-                    # Для простоты устанавливаем confidence = 1.0, так как API не возвращает это значение
-                    confidence = 1.0
-                    
-                    # Формируем объект распознанного блюда
+                    # Валидация и округление данных
                     recognized_dish = {
-                        "name": result_json['name'],
-                        "weight": result_json['weight'],
-                        "calories": result_json['calories'],
-                        "proteins": float(result_json['proteins']),
-                        "fats": float(result_json['fats']),
-                        "carbohydrates": float(result_json['carbohydrates']),
-                        "confidence": confidence
+                        "name": str(dish_data.get("name", "Неизвестное блюдо")).strip(),
+                        "weight": max(1, int(float(dish_data.get("weight", 100)))),
+                        "calories": max(0, int(float(dish_data.get("calories", 0)))),
+                        "proteins": round(max(0, float(dish_data.get("proteins", 0))), 2),
+                        "fats": round(max(0, float(dish_data.get("fats", 0))), 2),
+                        "carbohydrates": round(max(0, float(dish_data.get("carbohydrates", 0))), 2),
+                        "confidence": 0.8  # Уверенность распознавания
                     }
                     
-                    # Формируем ответ согласно документации
-                    response_data = {
+                    return Response({
                         "recognized_dishes": [recognized_dish],
-                        "suggested_date": suggested_date.strftime('%Y-%m-%d'),
-                        "suggested_meal_type": suggested_meal_type
-                    }
-                    
-                    return Response(response_data, status=status.HTTP_200_OK)
-                    
-                except json.JSONDecodeError as e:
-                    last_error = f"Невалидный JSON на попытке {attempt + 1}: {e}"
-                    logger.warning(f"{last_error}. Ответ: {response_text[:200]}")
-                    if attempt < max_attempts - 1:
-                        continue
-                except ValueError as e:
-                    last_error = f"Ошибка валидации JSON на попытке {attempt + 1}: {e}"
-                    logger.warning(f"{last_error}. JSON: {result_json if 'result_json' in locals() else 'не распарсен'}")
-                    if attempt < max_attempts - 1:
-                        continue
+                        "suggested_date": serializer.validated_data.get('date', None),
+                        "suggested_meal_type": serializer.validated_data.get('meal_type', None)
+                    })
+                else:
+                    # Логируем для отладки
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Не удалось найти JSON в ответе: {content[:500]}")
+                    raise ValueError("Не удалось извлечь JSON из ответа")
+            else:
+                raise ValueError("Неожиданный формат ответа от API")
                 
-            except Exception as e:
-                last_error = f"Ошибка при обращении к API на попытке {attempt + 1}: {str(e)}"
-                logger.error(last_error)
-                if attempt < max_attempts - 1:
-                    continue
-        
-        # Если все попытки не удались
-        logger.error(f"Не удалось получить валидный JSON после {max_attempts} попыток. Последняя ошибка: {last_error}")
-        return Response(
-            {"detail": "Не удалось распознать блюдо. Попробуйте ещё раз."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
+        except requests.exceptions.RequestException as e:
+            return Response(
+                {"detail": f"Ошибка при обращении к сервису распознавания: {str(e)}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка парсинга JSON при распознавании: {str(e)}")
+            return Response(
+                {"detail": "Не удалось распознать блюдо. Попробуйте ещё раз."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Неожиданная ошибка при распознавании: {str(e)}", exc_info=True)
+            return Response(
+                {"detail": f"Ошибка распознавания: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
