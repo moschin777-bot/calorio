@@ -96,6 +96,7 @@ class DishViewSet(viewsets.ModelViewSet):
         # Сохраняем блюдо с user и meal
         # Удаляем date и meal_type из validated_data перед сохранением
         validated_data = serializer.validated_data.copy()
+        # Удаляем поля, которые не являются полями модели Dish
         validated_data.pop('date', None)
         validated_data.pop('meal_type', None)
         
@@ -111,7 +112,13 @@ class DishViewSet(viewsets.ModelViewSet):
         if 'carbohydrates' not in validated_data or validated_data['carbohydrates'] is None:
             validated_data['carbohydrates'] = Decimal('0')
         
+        # Преобразуем Decimal поля в строки для корректной сериализации
+        for field in ['proteins', 'fats', 'carbohydrates']:
+            if field in validated_data and isinstance(validated_data[field], (float, int)):
+                validated_data[field] = Decimal(str(validated_data[field]))
+        
         # Сохраняем через serializer с явной передачей всех полей
+        # Важно: передаем только поля модели Dish, без date и meal_type
         serializer.save(user=user, meal=meal, **validated_data)
     
     def get_object(self):
