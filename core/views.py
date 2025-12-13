@@ -431,6 +431,45 @@ class DishRecognitionView(generics.CreateAPIView):
             import base64
             from PIL import Image
             import io
+            from typing import Any, Dict, Optional
+
+            def _extract_json_object(text: str) -> Optional[str]:
+                """
+                Достаём первый валидный JSON-объект из произвольного текста.
+                Работает лучше, чем find('{')..rfind('}') (не ломается на лишних скобках).
+                """
+                if not text:
+                    return None
+                s = text.strip()
+                # убираем markdown fences
+                s = s.replace("```json", "").replace("```", "").strip()
+                start = s.find("{")
+                if start == -1:
+                    return None
+                in_str = False
+                esc = False
+                depth = 0
+                for i in range(start, len(s)):
+                    ch = s[i]
+                    if in_str:
+                        if esc:
+                            esc = False
+                        elif ch == "\\":
+                            esc = True
+                        elif ch == "\"":
+                            in_str = False
+                        continue
+                    else:
+                        if ch == "\"":
+                            in_str = True
+                            continue
+                        if ch == "{":
+                            depth += 1
+                        elif ch == "}":
+                            depth -= 1
+                            if depth == 0:
+                                return s[start:i + 1]
+                return None
             
             # Декодируем изображение для проверки
             try:
@@ -530,6 +569,8 @@ If you cannot determine exact values, use realistic estimates based on typical v
                 ],
                 "max_tokens": 1000,  # Увеличиваем для более детальных ответов
                 "temperature": 0.1,  # Очень низкая температура для точных результатов
+                # Просим строгий JSON (сильно снижает шанс "Некорректные данные от API")
+                "response_format": {"type": "json_object"},
             }
             
             # Отправляем запрос с явной обработкой UTF-8
@@ -576,6 +617,11 @@ If you cannot determine exact values, use realistic estimates based on typical v
                         {"detail": "Ошибка авторизации в сервисе распознавания. Проверьте настройки API ключа."},
                         status=status.HTTP_503_SERVICE_UNAVAILABLE
                     )
+                elif response.status_code == 402:
+                    return Response(
+                        {"detail": "Сервис распознавания недоступен: на OpenRouter закончились кредиты (402)."},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
+                    )
                 elif response.status_code == 429:
                     return Response(
                         {"detail": "Превышен лимит запросов к сервису распознавания. Попробуйте позже."},
@@ -610,51 +656,57 @@ If you cannot determine exact values, use realistic estimates based on typical v
                 else:
                     content = str(content_raw)
                 
-                # Парсим JSON из ответа
-                import re
-                # Ищем JSON в ответе (более надёжный способ)
-                # Убираем markdown код блоки если есть
+                # Пытаемся распарсить строго
                 content_cleaned = content.replace('```json', '').replace('```', '').strip()
-                
-                # Пробуем найти JSON объект (может быть вложенным)
-                json_match = None
-                # Сначала пробуем найти между первыми { и последними }
-                start_idx = content_cleaned.find('{')
-                end_idx = content_cleaned.rfind('}')
-                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                    json_str = content_cleaned[start_idx:end_idx+1]
-                    json_match = type('obj', (object,), {'group': lambda: json_str})()
-                
-                if json_match:
-                    try:
-                        dish_data = json.loads(json_match.group())
-                    except json.JSONDecodeError:
-                        # Если не получилось, пробуем очистить строку от markdown
-                        cleaned = json_match.group().replace('```json', '').replace('```', '').strip()
-                        dish_data = json.loads(cleaned)
-                    
-                    # Валидация и округление данных
+                dish_data: Optional[Dict[str, Any]] = None
+                try:
+                    parsed = json.loads(content_cleaned)
+                except Exception:
+                    extracted = _extract_json_object(content_cleaned)
+                    if extracted:
+                        parsed = json.loads(extracted)
+                    else:
+                        parsed = None
+
+                # Нормализуем разные форматы
+                if isinstance(parsed, dict):
+                    # Иногда модель возвращает {"recognized_dishes":[{...}]}
+                    if "recognized_dishes" in parsed and isinstance(parsed.get("recognized_dishes"), list) and parsed["recognized_dishes"]:
+                        if isinstance(parsed["recognized_dishes"][0], dict):
+                            dish_data = parsed["recognized_dishes"][0]
+                    else:
+                        dish_data = parsed
+                elif isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+                    dish_data = parsed[0]
+
+                if dish_data:
+                    # Поддерживаем и русские ключи на всякий случай
+                    name = dish_data.get("name") or dish_data.get("название") or "Неизвестное блюдо"
+                    weight_val = dish_data.get("weight") or dish_data.get("вес") or 100
+                    calories_val = dish_data.get("calories") or dish_data.get("калории") or 0
+                    proteins_val = dish_data.get("proteins") or dish_data.get("белки") or 0
+                    fats_val = dish_data.get("fats") or dish_data.get("жиры") or 0
+                    carbs_val = dish_data.get("carbohydrates") or dish_data.get("углеводы") or 0
+
                     recognized_dish = {
-                        "name": str(dish_data.get("name", "Неизвестное блюдо")).strip(),
-                        "weight": max(1, int(float(dish_data.get("weight", 100)))),
-                        "calories": max(0, int(float(dish_data.get("calories", 0)))),
-                        "proteins": round(max(0, float(dish_data.get("proteins", 0))), 2),
-                        "fats": round(max(0, float(dish_data.get("fats", 0))), 2),
-                        "carbohydrates": round(max(0, float(dish_data.get("carbohydrates", 0))), 2),
-                        "confidence": 0.8  # Уверенность распознавания
+                        "name": str(name).strip(),
+                        "weight": max(1, int(float(weight_val))),
+                        "calories": max(0, int(float(calories_val))),
+                        "proteins": round(max(0, float(proteins_val)), 2),
+                        "fats": round(max(0, float(fats_val)), 2),
+                        "carbohydrates": round(max(0, float(carbs_val)), 2),
+                        "confidence": 0.8,
                     }
-                    
+
                     return Response({
                         "recognized_dishes": [recognized_dish],
                         "suggested_date": serializer.validated_data.get('date', None),
                         "suggested_meal_type": serializer.validated_data.get('meal_type', None)
                     })
-                else:
-                    # Логируем для отладки
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.error(f"Не удалось найти JSON в ответе: {content[:500]}")
-                    raise ValueError("Не удалось извлечь JSON из ответа")
+
+                # Логируем для отладки
+                logger.error(f"Не удалось распарсить JSON из ответа модели. content: {content[:500]}")
+                raise ValueError("Не удалось извлечь JSON из ответа")
             else:
                 raise ValueError("Неожиданный формат ответа от API")
                 

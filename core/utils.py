@@ -2,6 +2,7 @@
 Утилиты для расчёта КБЖУ
 """
 from decimal import Decimal
+from typing import Optional
 
 
 def calculate_bmr(weight, height, age, gender='male'):
@@ -145,7 +146,68 @@ FOOD_DATABASE = {
     "крабовый салат": {"calories_per_100g": 150, "proteins_per_100g": 8, "fats_per_100g": 10, "carbs_per_100g": 8},
     "салат цезарь": {"calories_per_100g": 160, "proteins_per_100g": 10, "fats_per_100g": 12, "carbs_per_100g": 5},
     "овощной салат": {"calories_per_100g": 30, "proteins_per_100g": 1, "fats_per_100g": 1, "carbs_per_100g": 5},
+
+    # Базовые продукты (частые короткие названия из UI)
+    "хлеб": {"calories_per_100g": 250, "proteins_per_100g": 8, "fats_per_100g": 3, "carbs_per_100g": 50},
+    "сыр": {"calories_per_100g": 350, "proteins_per_100g": 25, "fats_per_100g": 28, "carbs_per_100g": 2},
+    "свекла": {"calories_per_100g": 43, "proteins_per_100g": 1.6, "fats_per_100g": 0.2, "carbs_per_100g": 10},
+    # Частый салат/блюдо
+    "свекла с сыром": {"calories_per_100g": 135, "proteins_per_100g": 8.5, "fats_per_100g": 8.5, "carbs_per_100g": 7.6},
 }
+
+def _find_best_local_key(food_lower: str) -> Optional[str]:
+    """Находит лучший ключ в FOOD_DATABASE по прямому/частичному совпадению (берём самый длинный матч)."""
+    if food_lower in FOOD_DATABASE:
+        return food_lower
+
+    best_key = None
+    best_len = 0
+    for key in FOOD_DATABASE.keys():
+        if key in food_lower or food_lower in key:
+            if len(key) > best_len:
+                best_key = key
+                best_len = len(key)
+    return best_key
+
+
+def _compose_from_parts(food_name: str, weight_grams: int):
+    """
+    Эвристика для составных блюд вида 'X с Y' / 'X и Y' / 'X+Y' / 'X, Y'.
+    Если все части находятся в локальной базе, считаем равные доли и суммируем КБЖУ на 100г.
+    """
+    import re
+
+    food_lower = str(food_name).lower().strip()
+    parts = [p.strip() for p in re.split(r"\s+(?:с|и)\s+|\s*\+\s*|\s*,\s*", food_lower) if p.strip()]
+    if len(parts) < 2 or len(parts) > 4:
+        return None
+
+    keys = []
+    for p in parts:
+        k = _find_best_local_key(p)
+        if not k:
+            return None
+        keys.append(k)
+
+    n = len(keys)
+    per100 = {"calories": 0.0, "proteins": 0.0, "fats": 0.0, "carbohydrates": 0.0}
+    for k in keys:
+        d = FOOD_DATABASE[k]
+        per100["calories"] += float(d["calories_per_100g"]) / n
+        per100["proteins"] += float(d["proteins_per_100g"]) / n
+        per100["fats"] += float(d["fats_per_100g"]) / n
+        per100["carbohydrates"] += float(d["carbs_per_100g"]) / n
+
+    ratio = max(1, int(weight_grams)) / 100.0
+    return {
+        "name": food_name,
+        "weight": max(1, int(weight_grams)),
+        "calories": int(round(per100["calories"] * ratio)),
+        "proteins": round(per100["proteins"] * ratio, 2),
+        "fats": round(per100["fats"] * ratio, 2),
+        "carbohydrates": round(per100["carbohydrates"] * ratio, 2),
+    }
+
 
 def _search_local_database(food_name, weight_grams):
     """Поиск в локальной базе данных"""
@@ -164,18 +226,24 @@ def _search_local_database(food_name, weight_grams):
             "carbohydrates": round(data["carbs_per_100g"] * ratio, 2),
         }
     
-    # Поиск по частичному совпадению
-    for key, data in FOOD_DATABASE.items():
-        if key in food_lower or food_lower in key:
-            ratio = weight_grams / 100.0
-            return {
-                "name": food_name,
-                "weight": weight_grams,
-                "calories": int(round(data["calories_per_100g"] * ratio)),
-                "proteins": round(data["proteins_per_100g"] * ratio, 2),
-                "fats": round(data["fats_per_100g"] * ratio, 2),
-                "carbohydrates": round(data["carbs_per_100g"] * ratio, 2),
-            }
+    # Поиск по частичному совпадению (берём лучший/самый длинный матч)
+    best_key = _find_best_local_key(food_lower)
+    if best_key:
+        data = FOOD_DATABASE[best_key]
+        ratio = weight_grams / 100.0
+        return {
+            "name": food_name,
+            "weight": weight_grams,
+            "calories": int(round(data["calories_per_100g"] * ratio)),
+            "proteins": round(data["proteins_per_100g"] * ratio, 2),
+            "fats": round(data["fats_per_100g"] * ratio, 2),
+            "carbohydrates": round(data["carbs_per_100g"] * ratio, 2),
+        }
+
+    # Составные блюда (эвристика)
+    composed = _compose_from_parts(food_name, int(weight_grams))
+    if composed:
+        return composed
     
     return None
 
