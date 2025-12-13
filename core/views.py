@@ -117,9 +117,21 @@ class DishViewSet(viewsets.ModelViewSet):
             if field in validated_data and isinstance(validated_data[field], (float, int)):
                 validated_data[field] = Decimal(str(validated_data[field]))
         
-        # Сохраняем через serializer с явной передачей всех полей
-        # Важно: передаем только поля модели Dish, без date и meal_type
-        serializer.save(user=user, meal=meal, **validated_data)
+        # Создаем блюдо напрямую через модель, чтобы избежать проблем с date и meal_type в serializer
+        from .models import Dish
+        dish = Dish.objects.create(
+            user=user,
+            meal=meal,
+            name=validated_data.get('name', ''),
+            weight=int(validated_data.get('weight', 100)),
+            calories=int(validated_data.get('calories', 0)),
+            proteins=validated_data.get('proteins', Decimal('0')),
+            fats=validated_data.get('fats', Decimal('0')),
+            carbohydrates=validated_data.get('carbohydrates', Decimal('0')),
+        )
+        
+        # Обновляем instance в serializer для правильного ответа
+        serializer.instance = dish
     
     def get_object(self):
         """Получение объекта с проверкой прав доступа"""
