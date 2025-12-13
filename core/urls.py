@@ -5,7 +5,8 @@ from .views import (
     DailyGoalView, 
     DishRecognitionView,
     AutoCalculateGoalsView,
-    DayDataView
+    DayDataView,
+    FoodSearchView
 )
 
 app_name = 'core'
@@ -18,6 +19,7 @@ urlpatterns = [
     path('goals/auto-calculate/', AutoCalculateGoalsView.as_view(), name='goal-auto-calculate'),
     path('goals/<str:date>/', DailyGoalView.as_view(), name='goal-detail'),
     path('dishes/recognize/', DishRecognitionView.as_view(), name='dish-recognize'),
+    path('dishes/search-nutrition/', FoodSearchView.as_view(), name='food-search'),
     path('', include(router.urls)),
 ]
 

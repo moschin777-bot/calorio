@@ -17,27 +17,27 @@ class DishSerializer(serializers.ModelSerializer):
         write_only=True,
         required=True
     )
-    weight = serializers.IntegerField(required=False, allow_null=True, min_value=1)
-    calories = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    weight = serializers.IntegerField(required=False, default=100, min_value=1)
+    calories = serializers.IntegerField(required=False, default=0, min_value=0)
     proteins = serializers.DecimalField(
         max_digits=6, 
         decimal_places=2, 
         required=False, 
-        allow_null=True,
+        default=0,
         min_value=0
     )
     fats = serializers.DecimalField(
         max_digits=6, 
         decimal_places=2, 
         required=False, 
-        allow_null=True,
+        default=0,
         min_value=0
     )
     carbohydrates = serializers.DecimalField(
         max_digits=6, 
         decimal_places=2, 
         required=False, 
-        allow_null=True,
+        default=0,
         min_value=0
     )
     
@@ -65,6 +65,25 @@ class DishSerializer(serializers.ModelSerializer):
         """Валидация даты"""
         if value is None:
             raise serializers.ValidationError("Неверный формат даты.")
+        
+        # Проверяем, что дата не слишком далеко в будущем (не более 1 года)
+        from datetime import date, timedelta
+        today = date.today()
+        max_future_date = today + timedelta(days=365)
+        
+        if value > max_future_date:
+            raise serializers.ValidationError(
+                "Дата не может быть более чем на год в будущем."
+            )
+        
+        # Проверяем, что дата не слишком далеко в прошлом (не более 10 лет)
+        min_past_date = today - timedelta(days=3650)
+        
+        if value < min_past_date:
+            raise serializers.ValidationError(
+                "Дата не может быть более чем на 10 лет в прошлом."
+            )
+        
         return value
     
     def validate_weight(self, value):
@@ -97,6 +116,17 @@ class DishSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Убедитесь, что это значение больше либо равно 0.")
         return value
     
+    def to_internal_value(self, data):
+        """Преобразуем запятую в точку перед валидацией"""
+        if isinstance(data, dict):
+            # Обрабатываем десятичные поля
+            for field in ['proteins', 'fats', 'carbohydrates']:
+                if field in data and isinstance(data[field], str):
+                    data[field] = data[field].replace(',', '.')
+        return super().to_internal_value(data)
+    
+    # create() не переопределяем - вся логика в perform_create view
+    
     def to_representation(self, instance):
         """Преобразование для вывода - добавляем date и meal_type из связанного Meal"""
         representation = super().to_representation(instance)
@@ -110,6 +140,11 @@ class DailyGoalSerializer(serializers.ModelSerializer):
     """Сериализатор для целей КБЖУ на день"""
     date = serializers.DateField(format='%Y-%m-%d', input_formats=['%Y-%m-%d'], read_only=True)
     
+    # Переопределяем поля для поддержки запятой
+    proteins = serializers.DecimalField(max_digits=6, decimal_places=2, required=True)
+    fats = serializers.DecimalField(max_digits=6, decimal_places=2, required=True)
+    carbohydrates = serializers.DecimalField(max_digits=6, decimal_places=2, required=True)
+    
     class Meta:
         model = DailyGoal
         fields = (
@@ -117,6 +152,15 @@ class DailyGoalSerializer(serializers.ModelSerializer):
             'carbohydrates', 'is_auto_calculated', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'date', 'is_auto_calculated', 'created_at', 'updated_at')
+    
+    def to_internal_value(self, data):
+        """Преобразуем запятую в точку перед валидацией"""
+        if isinstance(data, dict):
+            # Обрабатываем десятичные поля
+            for field in ['proteins', 'fats', 'carbohydrates']:
+                if field in data and isinstance(data[field], str):
+                    data[field] = data[field].replace(',', '.')
+        return super().to_internal_value(data)
     
     def validate_calories(self, value):
         """Валидация калорий"""
@@ -276,4 +320,19 @@ class AutoCalculateGoalsSerializer(serializers.Serializer):
         if value < 1 or value > 150:
             raise serializers.ValidationError("Возраст должен быть от 1 до 150 лет.")
         return value
+
+
+class FoodSearchSerializer(serializers.Serializer):
+    """Сериализатор для поиска КБЖУ по названию продукта"""
+    food_name = serializers.CharField(
+        required=True,
+        max_length=255,
+        help_text="Название продукта или блюда"
+    )
+    weight = serializers.IntegerField(
+        required=False,
+        default=100,
+        min_value=1,
+        help_text="Вес в граммах (по умолчанию 100г)"
+    )
 

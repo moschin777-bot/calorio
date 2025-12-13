@@ -7,18 +7,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-from django.db.models import Sum, Q
 from decimal import Decimal
-from datetime import date as date_type
 
 from .models import Dish, DailyGoal, Meal
 from .serializers import (
     DishSerializer, 
     DailyGoalSerializer, 
     AutoCalculateGoalsSerializer,
-    DishRecognitionSerializer
+    DishRecognitionSerializer,
+    FoodSearchSerializer
 )
-from .utils import auto_calculate_goals
+from .utils import auto_calculate_goals, search_food_nutrition
 from django.views.generic import TemplateView
 from django.conf import settings
 from django.views.decorators.cache import never_cache
@@ -50,6 +49,8 @@ class DishViewSet(viewsets.ModelViewSet):
     """ViewSet для управления блюдами"""
     serializer_class = DishSerializer
     permission_classes = [IsAuthenticated]
+    # Пагинация для списка блюд (по умолчанию из settings.py - 20 элементов)
+    # Можно переопределить через query параметр ?page_size=N
     
     def get_queryset(self):
         """Возвращает только блюда текущего пользователя"""
@@ -92,8 +93,26 @@ class DishViewSet(viewsets.ModelViewSet):
             defaults={}
         )
         
-        # Создаём блюдо
-        serializer.save(user=user, meal=meal)
+        # Сохраняем блюдо с user и meal
+        # Удаляем date и meal_type из validated_data перед сохранением
+        validated_data = serializer.validated_data.copy()
+        validated_data.pop('date', None)
+        validated_data.pop('meal_type', None)
+        
+        # Убеждаемся, что все числовые поля имеют значения по умолчанию
+        if 'weight' not in validated_data or validated_data['weight'] is None:
+            validated_data['weight'] = 100
+        if 'calories' not in validated_data or validated_data['calories'] is None:
+            validated_data['calories'] = 0
+        if 'proteins' not in validated_data or validated_data['proteins'] is None:
+            validated_data['proteins'] = Decimal('0')
+        if 'fats' not in validated_data or validated_data['fats'] is None:
+            validated_data['fats'] = Decimal('0')
+        if 'carbohydrates' not in validated_data or validated_data['carbohydrates'] is None:
+            validated_data['carbohydrates'] = Decimal('0')
+        
+        # Сохраняем через serializer с явной передачей всех полей
+        serializer.save(user=user, meal=meal, **validated_data)
     
     def get_object(self):
         """Получение объекта с проверкой прав доступа"""
@@ -216,8 +235,12 @@ class DayDataView(generics.RetrieveAPIView):
         except DailyGoal.DoesNotExist:
             goal_data = None
         
-        # Получаем все блюда за день
-        meals = Meal.objects.filter(user=user, date=date_obj).prefetch_related('dishes')
+        # Получаем все блюда за день с оптимизацией запросов
+        # prefetch_related загружает все dishes одним запросом
+        meals = Meal.objects.filter(
+            user=user, 
+            date=date_obj
+        ).prefetch_related('dishes').order_by('meal_type')
         
         # Группируем блюда по типам приёмов пищи
         meals_data = {
@@ -228,12 +251,13 @@ class DayDataView(generics.RetrieveAPIView):
         }
         
         all_dishes = []
+        # Используем prefetch_related, поэтому dishes.all() не делает дополнительных запросов
         for meal in meals:
             dishes = meal.dishes.all()
-            for dish in dishes:
-                dish_data = DishSerializer(dish).data
-                meals_data[meal.meal_type].append(dish_data)
-                all_dishes.append(dish)
+            # Сериализуем все блюда разом для эффективности
+            dishes_serialized = DishSerializer(dishes, many=True).data
+            meals_data[meal.meal_type].extend(dishes_serialized)
+            all_dishes.extend(dishes)
         
         # Рассчитываем суммарные значения КБЖУ
         total_calories = sum(int(dish.calories or 0) for dish in all_dishes)
@@ -289,6 +313,11 @@ class DishRecognitionView(generics.CreateAPIView):
     serializer_class = DishRecognitionSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_throttles(self):
+        """Применяем throttling для распознавания"""
+        from core.throttles import DishRecognitionThrottle
+        return [DishRecognitionThrottle()]
+    
     def post(self, request, *args, **kwargs):
         """Распознавание блюда через OpenRouter API"""
         serializer = self.get_serializer(data=request.data)
@@ -301,6 +330,21 @@ class DishRecognitionView(generics.CreateAPIView):
             base64_data = image_base64.split(',')[-1]
         else:
             base64_data = image_base64
+        
+        # Проверяем, что данные не пустые
+        if not base64_data or len(base64_data) < 100:
+            return Response(
+                {"detail": "Изображение слишком маленькое или повреждено."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем максимальный размер base64 строки (примерно 13.3 МБ в base64 = 10 МБ бинарных данных)
+        max_base64_size = 14 * 1024 * 1024  # 14 МБ для учёта overhead base64
+        if len(base64_data) > max_base64_size:
+            return Response(
+                {"detail": "Размер изображения не должен превышать 10 МБ."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # Получаем API ключ из настроек
         from django.conf import settings
@@ -316,41 +360,86 @@ class DishRecognitionView(generics.CreateAPIView):
             import requests
             import json
             import base64
+            from PIL import Image
+            import io
             
-            # Декодируем изображение для проверки размера
-            image_bytes = base64.b64decode(base64_data)
+            # Декодируем изображение для проверки
+            try:
+                image_bytes = base64.b64decode(base64_data, validate=True)
+            except Exception as e:
+                return Response(
+                    {"detail": "Неверный формат base64."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Проверяем, что это действительно изображение
+            import logging
+            logger = logging.getLogger(__name__)
+            try:
+                # Проверяем размер декодированного изображения
+                if len(image_bytes) > 10 * 1024 * 1024:  # 10 МБ
+                    return Response(
+                        {"detail": "Размер изображения не должен превышать 10 МБ."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # Проверяем формат изображения
+                img = Image.open(io.BytesIO(image_bytes))
+                img.verify()
+                # После verify() нужно открыть заново
+                img = Image.open(io.BytesIO(image_bytes))
+                # Проверяем, что это поддерживаемый формат
+                if img.format not in ['JPEG', 'PNG', 'WEBP', 'JPG']:
+                    return Response(
+                        {"detail": "Неверный формат изображения. Поддерживаются только JPEG, PNG и WebP."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Exception as e:
+                logger.error(f"Ошибка проверки изображения: {str(e)}")
+                return Response(
+                    {"detail": "Неверный формат изображения. Ожидается изображение в формате JPEG, PNG или WebP."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             # Используем OpenRouter API с моделью для распознавания изображений
             # Используем модель, которая поддерживает vision (например, gpt-4-vision-preview или claude-3-opus)
             url = "https://openrouter.ai/api/v1/chat/completions"
             
+            site_url = getattr(settings, 'SITE_URL', 'http://217.26.29.106')
             headers = {
                 "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": getattr(settings, 'SITE_URL', 'http://217.26.29.106'),
+                "Content-Type": "application/json; charset=utf-8",
+                "HTTP-Referer": site_url,
+                "X-Title": "Calorio - Распознавание блюд",
             }
             
-            # Формируем промпт для распознавания блюда
-            prompt = """Проанализируй это изображение еды и определи:
-1. Название блюда (на русском языке)
-2. Примерный вес порции в граммах
-3. Калории (ккал)
-4. Белки (г)
-5. Жиры (г)
-6. Углеводы (г)
+            # Логируем для отладки (без ключа)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Отправка запроса к OpenRouter API, модель: openai/gpt-4o, размер изображения: {len(base64_data)} символов")
+            
+            # Формируем промпт для распознавания блюда (на английском для избежания проблем с кодировкой)
+            prompt = """Analyze this food image and determine:
+1. Dish name (in Russian language)
+2. Approximate portion weight in grams
+3. Calories (kcal)
+4. Proteins (g)
+5. Fats (g)
+6. Carbohydrates (g)
 
-Ответь ТОЛЬКО в формате JSON без дополнительных комментариев:
+Respond ONLY in JSON format without any additional comments or markdown:
 {
-  "name": "название блюда",
-  "weight": вес_в_граммах,
-  "calories": калории,
-  "proteins": белки,
-  "fats": жиры,
-  "carbohydrates": углеводы
+  "name": "dish name in Russian",
+  "weight": weight_in_grams,
+  "calories": calories,
+  "proteins": proteins,
+  "fats": fats,
+  "carbohydrates": carbohydrates
 }
 
-Если не можешь определить точные значения, используй реалистичные оценки на основе типичных значений для подобных блюд."""
+If you cannot determine exact values, use realistic estimates based on typical values for similar dishes."""
             
+            # Пробуем разные модели для лучшей совместимости
+            # Сначала пробуем GPT-4o, если не сработает - попробуем другие
             payload = {
                 "model": "openai/gpt-4o",  # Используем GPT-4o для лучшего распознавания
                 "messages": [
@@ -370,18 +459,87 @@ class DishRecognitionView(generics.CreateAPIView):
                         ]
                     }
                 ],
-                "max_tokens": 500,
-                "temperature": 0.3,  # Низкая температура для более точных результатов
+                "max_tokens": 1000,  # Увеличиваем для более детальных ответов
+                "temperature": 0.1,  # Очень низкая температура для точных результатов
             }
             
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
+            # Отправляем запрос с явной обработкой UTF-8
+            # Проблема: requests может использовать latin-1, поэтому делаем вручную
+            import json as json_lib
             
-            result = response.json()
+            # Сериализуем в JSON с ensure_ascii=False
+            json_str = json_lib.dumps(payload, ensure_ascii=False)
+            json_bytes = json_str.encode('utf-8')
+            
+            # Обновляем заголовки для правильной отправки
+            headers_final = headers.copy()
+            headers_final['Content-Type'] = 'application/json; charset=utf-8'
+            headers_final['Content-Length'] = str(len(json_bytes))
+            
+            # Отправляем как bytes
+            response = requests.post(
+                url,
+                headers=headers_final,
+                data=json_bytes,
+                timeout=60
+            )
+            
+            # Устанавливаем кодировку ответа
+            response.encoding = 'utf-8'
+            
+            # Проверяем статус ответа
+            if response.status_code != 200:
+                import logging
+                logger = logging.getLogger(__name__)
+                try:
+                    error_data = response.json()
+                    error_text = str(error_data).replace(api_key, '***HIDDEN***')[:500]
+                except:
+                try:
+                    error_text = response.text[:500]
+                except:
+                    error_text = "Не удалось прочитать ответ"
+                logger.error(f"OpenRouter API вернул статус {response.status_code}: {error_text}")
+                
+                # Возвращаем понятное сообщение пользователю
+                if response.status_code == 401:
+                    return Response(
+                        {"detail": "Ошибка авторизации в сервисе распознавания. Проверьте настройки API ключа."},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
+                    )
+                elif response.status_code == 429:
+                    return Response(
+                        {"detail": "Превышен лимит запросов к сервису распознавания. Попробуйте позже."},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
+                    )
+                else:
+                    return Response(
+                        {"detail": "Не удалось распознать блюдо. Попробуйте ещё раз."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            
+            # Парсим JSON ответа с правильной кодировкой
+            try:
+                result = response.json()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Ошибка парсинга JSON ответа: {str(e)}")
+                # Пробуем декодировать вручную
+                try:
+                    result = json.loads(response.content.decode('utf-8'))
+                except Exception as e2:
+                    logger.error(f"Ошибка декодирования ответа: {str(e2)}")
+                    raise ValueError(f"Не удалось распарсить ответ от API: {str(e2)}")
             
             # Извлекаем ответ из API
             if 'choices' in result and len(result['choices']) > 0:
-                content = result['choices'][0]['message']['content']
+                # Получаем content, убеждаясь что это строка в UTF-8
+                content_raw = result['choices'][0]['message']['content']
+                if isinstance(content_raw, bytes):
+                    content = content_raw.decode('utf-8')
+                else:
+                    content = str(content_raw)
                 
                 # Парсим JSON из ответа
                 import re
@@ -431,17 +589,64 @@ class DishRecognitionView(generics.CreateAPIView):
             else:
                 raise ValueError("Неожиданный формат ответа от API")
                 
+        except requests.exceptions.HTTPError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            if e.response:
+                try:
+                    error_text = e.response.content.decode('utf-8')[:200]
+                except:
+                    error_text = "Не удалось декодировать ответ"
+                error_msg = f"HTTP {e.response.status_code}: {error_text}"
+            else:
+                error_msg = str(e)
+            logger.error(f"HTTP ошибка при обращении к OpenRouter: {error_msg}")
+            
+            if e.response and e.response.status_code == 401:
+                return Response(
+                    {"detail": "Ошибка авторизации в сервисе распознавания. Проверьте настройки API ключа."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            elif e.response and e.response.status_code == 429:
+                return Response(
+                    {"detail": "Превышен лимит запросов к сервису распознавания. Попробуйте позже."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            else:
+                return Response(
+                    {"detail": f"Ошибка сервиса распознавания: {error_msg}"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
         except requests.exceptions.RequestException as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка при обращении к сервису распознавания: {str(e)}")
             return Response(
                 {"detail": f"Ошибка при обращении к сервису распознавания: {str(e)}"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
+        except json.JSONDecodeError as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Ошибка парсинга JSON при распознавании: {str(e)}")
+            logger.error(f"Ошибка парсинга JSON при распознавании: {str(e)}, content: {content[:200] if 'content' in locals() else 'N/A'}")
             return Response(
-                {"detail": "Не удалось распознать блюдо. Попробуйте ещё раз."},
+                {"detail": "Не удалось распознать блюдо. Ответ API содержит некорректный JSON."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except ValueError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка валидации данных при распознавании: {str(e)}")
+            return Response(
+                {"detail": "Не удалось распознать блюдо. Некорректные данные от API."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except KeyError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Отсутствует ключ в ответе API: {str(e)}")
+            return Response(
+                {"detail": "Не удалось распознать блюдо. Неполный ответ от API."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         except Exception as e:
@@ -451,4 +656,29 @@ class DishRecognitionView(generics.CreateAPIView):
             return Response(
                 {"detail": f"Ошибка распознавания: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class FoodSearchView(generics.CreateAPIView):
+    """View для поиска КБЖУ по названию продукта"""
+    serializer_class = FoodSearchSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        """Поиск КБЖУ по названию продукта"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        food_name = serializer.validated_data['food_name']
+        weight = serializer.validated_data.get('weight', 100)
+        
+        # Ищем КБЖУ через OpenRouter API (LLM)
+        nutrition_data = search_food_nutrition(food_name, weight)
+        
+        if nutrition_data:
+            return Response(nutrition_data, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {"detail": "Не удалось найти информацию о продукте. Попробуйте другое название или введите КБЖУ вручную."},
+                status=status.HTTP_404_NOT_FOUND
             )

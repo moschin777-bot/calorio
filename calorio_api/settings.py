@@ -293,7 +293,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# OpenRouter API settings
+# OpenRouter API settings (для распознавания по фото и поиска КБЖУ по названию)
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
 SITE_URL = os.getenv('SITE_URL', 'http://217.26.29.106')
 

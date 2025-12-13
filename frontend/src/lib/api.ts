@@ -205,6 +205,14 @@ export const dishesAPI = {
     const response = await api.post('/dishes/recognize/', data);
     return response.data;
   },
+  
+  searchNutrition: async (foodName: string, weight: number = 100) => {
+    const response = await api.post('/dishes/search-nutrition/', {
+      food_name: foodName,
+      weight: weight,
+    });
+    return response.data;
+  },
 };
 
 // Subscription API
