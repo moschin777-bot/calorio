@@ -248,7 +248,9 @@ def search_food_nutrition(food_name, weight_grams=100):
                     return None
         
         logger.error("Неожиданный формат ответа от OpenRouter API")
-        logger.error(f"Ответ API: {result if 'result' in locals() else 'N/A'}")
+        logger.error(f"Ответ API (первые 500 символов): {str(result)[:500] if 'result' in locals() else 'N/A'}")
+        if 'result' in locals() and isinstance(result, dict):
+            logger.error(f"Ключи в ответе: {list(result.keys())}")
         return None
         
     except requests.exceptions.RequestException as e:
