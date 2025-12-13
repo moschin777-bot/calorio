@@ -103,19 +103,42 @@ def calculate_macros(calories, weight=None):
 
 
 # Локальная база данных популярных блюд (fallback если OpenRouter недоступен)
+# Значения на 100г продукта
 FOOD_DATABASE = {
+    # Яичные блюда
     "яичница": {"calories_per_100g": 200, "proteins_per_100g": 13, "fats_per_100g": 15, "carbs_per_100g": 1},
     "яичница с помидорами": {"calories_per_100g": 180, "proteins_per_100g": 12, "fats_per_100g": 13, "carbs_per_100g": 3},
+    "омлет": {"calories_per_100g": 190, "proteins_per_100g": 12, "fats_per_100g": 14, "carbs_per_100g": 2},
+    "омлет с беконом": {"calories_per_100g": 250, "proteins_per_100g": 15, "fats_per_100g": 18, "carbs_per_100g": 3},
+    
+    # Супы
     "суп гороховый": {"calories_per_100g": 60, "proteins_per_100g": 4, "fats_per_100g": 2, "carbs_per_100g": 8},
     "гороховый суп": {"calories_per_100g": 60, "proteins_per_100g": 4, "fats_per_100g": 2, "carbs_per_100g": 8},
+    "борщ": {"calories_per_100g": 50, "proteins_per_100g": 2, "fats_per_100g": 2, "carbs_per_100g": 6},
+    "щи": {"calories_per_100g": 45, "proteins_per_100g": 2, "fats_per_100g": 2, "carbs_per_100g": 5},
+    
+    # Сырники и десерты
     "сырники": {"calories_per_100g": 250, "proteins_per_100g": 12, "fats_per_100g": 10, "carbs_per_100g": 25},
     "сырник": {"calories_per_100g": 250, "proteins_per_100g": 12, "fats_per_100g": 10, "carbs_per_100g": 25},
     "варенье": {"calories_per_100g": 250, "proteins_per_100g": 0, "fats_per_100g": 0, "carbs_per_100g": 65},
+    
+    # Каши
     "гречка": {"calories_per_100g": 100, "proteins_per_100g": 4, "fats_per_100g": 1, "carbs_per_100g": 20},
     "гречневая каша": {"calories_per_100g": 100, "proteins_per_100g": 4, "fats_per_100g": 1, "carbs_per_100g": 20},
+    "манка": {"calories_per_100g": 80, "proteins_per_100g": 3, "fats_per_100g": 1, "carbs_per_100g": 15},
+    "манка с вареньем": {"calories_per_100g": 120, "proteins_per_100g": 2, "fats_per_100g": 1, "carbs_per_100g": 25},
+    "овсянка": {"calories_per_100g": 90, "proteins_per_100g": 3, "fats_per_100g": 2, "carbs_per_100g": 15},
+    "рис": {"calories_per_100g": 130, "proteins_per_100g": 3, "fats_per_100g": 0, "carbs_per_100g": 28},
+    
+    # Мясные блюда
     "котлеты": {"calories_per_100g": 250, "proteins_per_100g": 18, "fats_per_100g": 15, "carbs_per_100g": 10},
     "котлета": {"calories_per_100g": 250, "proteins_per_100g": 18, "fats_per_100g": 15, "carbs_per_100g": 10},
     "гречка с котлетами": {"calories_per_100g": 175, "proteins_per_100g": 11, "fats_per_100g": 8, "carbs_per_100g": 15},
+    "рис с котлетами": {"calories_per_100g": 190, "proteins_per_100g": 11, "fats_per_100g": 8, "carbs_per_100g": 18},
+    
+    # Выпечка
+    "ватрушка": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
+    "ватрушки": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
 }
 
 def _search_local_database(food_name, weight_grams):
