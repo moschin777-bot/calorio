@@ -248,10 +248,11 @@ def search_food_nutrition(food_name, weight_grams=100):
                     return None
         
         logger.error("Неожиданный формат ответа от OpenRouter API")
+        logger.error(f"Ответ API: {result if 'result' in locals() else 'N/A'}")
         return None
         
     except requests.exceptions.RequestException as e:
-        logger.error(f"Ошибка при обращении к OpenRouter API: {str(e)}")
+        logger.error(f"Ошибка при обращении к OpenRouter API: {str(e)}", exc_info=True)
         return None
     except Exception as e:
         logger.error(f"Неожиданная ошибка при поиске КБЖУ: {str(e)}", exc_info=True)
