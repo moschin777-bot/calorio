@@ -100,37 +100,40 @@ class DishViewSet(viewsets.ModelViewSet):
         validated_data.pop('date', None)
         validated_data.pop('meal_type', None)
         
-        # Убеждаемся, что все числовые поля имеют значения по умолчанию
+        # Убеждаемся, что вес указан
         if 'weight' not in validated_data or validated_data['weight'] is None:
             validated_data['weight'] = 100
-        if 'calories' not in validated_data or validated_data['calories'] is None:
-            validated_data['calories'] = 0
-        if 'proteins' not in validated_data or validated_data['proteins'] is None:
-            validated_data['proteins'] = Decimal('0')
-        if 'fats' not in validated_data or validated_data['fats'] is None:
-            validated_data['fats'] = Decimal('0')
-        if 'carbohydrates' not in validated_data or validated_data['carbohydrates'] is None:
-            validated_data['carbohydrates'] = Decimal('0')
         
-        # Преобразуем Decimal поля в строки для корректной сериализации
-        for field in ['proteins', 'fats', 'carbohydrates']:
-            if field in validated_data and isinstance(validated_data[field], (float, int)):
-                validated_data[field] = Decimal(str(validated_data[field]))
-        
-        # Автоматический поиск КБЖУ, если они не указаны (все равны 0)
+        # Получаем значения КБЖУ (если не указаны, считаем их равными 0)
         dish_name = validated_data.get('name', '').strip()
         dish_weight = int(validated_data.get('weight', 100))
-        calories = int(validated_data.get('calories', 0))
-        proteins = validated_data.get('proteins', Decimal('0'))
-        fats = validated_data.get('fats', Decimal('0'))
-        carbohydrates = validated_data.get('carbohydrates', Decimal('0'))
+        calories = int(validated_data.get('calories', 0) or 0)
+        proteins_raw = validated_data.get('proteins', None)
+        fats_raw = validated_data.get('fats', None)
+        carbohydrates_raw = validated_data.get('carbohydrates', None)
+        
+        # Преобразуем в Decimal, если указаны, иначе 0
+        if proteins_raw is not None:
+            proteins = Decimal(str(proteins_raw)) if not isinstance(proteins_raw, Decimal) else proteins_raw
+        else:
+            proteins = Decimal('0')
+        
+        if fats_raw is not None:
+            fats = Decimal(str(fats_raw)) if not isinstance(fats_raw, Decimal) else fats_raw
+        else:
+            fats = Decimal('0')
+        
+        if carbohydrates_raw is not None:
+            carbohydrates = Decimal(str(carbohydrates_raw)) if not isinstance(carbohydrates_raw, Decimal) else carbohydrates_raw
+        else:
+            carbohydrates = Decimal('0')
         
         # Преобразуем Decimal в float для корректного сравнения с нулем
-        proteins_float = float(proteins) if isinstance(proteins, Decimal) else float(proteins or 0)
-        fats_float = float(fats) if isinstance(fats, Decimal) else float(fats or 0)
-        carbohydrates_float = float(carbohydrates) if isinstance(carbohydrates, Decimal) else float(carbohydrates or 0)
+        proteins_float = float(proteins)
+        fats_float = float(fats)
+        carbohydrates_float = float(carbohydrates)
         
-        # Если КБЖУ не указаны (все равны 0) и есть название блюда, пытаемся найти автоматически
+        # ВСЕГДА пытаемся найти КБЖУ автоматически, если они не указаны (все равны 0) и есть название блюда
         if (calories == 0 and proteins_float == 0 and fats_float == 0 and carbohydrates_float == 0 and dish_name):
             import logging
             logger = logging.getLogger(__name__)
@@ -142,9 +145,9 @@ class DishViewSet(viewsets.ModelViewSet):
                 proteins = Decimal(str(nutrition_data.get('proteins', 0)))
                 fats = Decimal(str(nutrition_data.get('fats', 0)))
                 carbohydrates = Decimal(str(nutrition_data.get('carbohydrates', 0)))
-                logger.info(f"КБЖУ найдены автоматически: {calories} ккал, Б: {proteins}г, Ж: {fats}г, У: {carbohydrates}г")
+                logger.info(f"✅ КБЖУ найдены автоматически: {calories} ккал, Б: {proteins}г, Ж: {fats}г, У: {carbohydrates}г")
             else:
-                logger.warning(f"Не удалось найти КБЖУ для блюда: {dish_name}")
+                logger.warning(f"❌ Не удалось найти КБЖУ для блюда: {dish_name}")
         
         # Создаем блюдо напрямую через модель, чтобы избежать проблем с date и meal_type в serializer
         from .models import Dish
