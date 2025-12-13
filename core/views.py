@@ -495,10 +495,10 @@ If you cannot determine exact values, use realistic estimates based on typical v
                     error_data = response.json()
                     error_text = str(error_data).replace(api_key, '***HIDDEN***')[:500]
                 except:
-                try:
-                    error_text = response.text[:500]
-                except:
-                    error_text = "Не удалось прочитать ответ"
+                    try:
+                        error_text = response.text[:500]
+                    except:
+                        error_text = "Не удалось прочитать ответ"
                 logger.error(f"OpenRouter API вернул статус {response.status_code}: {error_text}")
                 
                 # Возвращаем понятное сообщение пользователю
