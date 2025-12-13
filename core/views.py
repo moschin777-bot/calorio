@@ -117,17 +117,41 @@ class DishViewSet(viewsets.ModelViewSet):
             if field in validated_data and isinstance(validated_data[field], (float, int)):
                 validated_data[field] = Decimal(str(validated_data[field]))
         
+        # Автоматический поиск КБЖУ, если они не указаны (все равны 0)
+        dish_name = validated_data.get('name', '').strip()
+        dish_weight = int(validated_data.get('weight', 100))
+        calories = int(validated_data.get('calories', 0))
+        proteins = validated_data.get('proteins', Decimal('0'))
+        fats = validated_data.get('fats', Decimal('0'))
+        carbohydrates = validated_data.get('carbohydrates', Decimal('0'))
+        
+        # Если КБЖУ не указаны (все равны 0) и есть название блюда, пытаемся найти автоматически
+        if (calories == 0 and proteins == 0 and fats == 0 and carbohydrates == 0 and dish_name):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Автоматический поиск КБЖУ для блюда: {dish_name} ({dish_weight}г)")
+            
+            nutrition_data = search_food_nutrition(dish_name, dish_weight)
+            if nutrition_data:
+                calories = int(nutrition_data.get('calories', 0))
+                proteins = Decimal(str(nutrition_data.get('proteins', 0)))
+                fats = Decimal(str(nutrition_data.get('fats', 0)))
+                carbohydrates = Decimal(str(nutrition_data.get('carbohydrates', 0)))
+                logger.info(f"КБЖУ найдены автоматически: {calories} ккал, Б: {proteins}г, Ж: {fats}г, У: {carbohydrates}г")
+            else:
+                logger.warning(f"Не удалось найти КБЖУ для блюда: {dish_name}")
+        
         # Создаем блюдо напрямую через модель, чтобы избежать проблем с date и meal_type в serializer
         from .models import Dish
         dish = Dish.objects.create(
             user=user,
             meal=meal,
-            name=validated_data.get('name', ''),
-            weight=int(validated_data.get('weight', 100)),
-            calories=int(validated_data.get('calories', 0)),
-            proteins=validated_data.get('proteins', Decimal('0')),
-            fats=validated_data.get('fats', Decimal('0')),
-            carbohydrates=validated_data.get('carbohydrates', Decimal('0')),
+            name=dish_name,
+            weight=dish_weight,
+            calories=calories,
+            proteins=proteins,
+            fats=fats,
+            carbohydrates=carbohydrates,
         )
         
         # Обновляем instance в serializer для правильного ответа
