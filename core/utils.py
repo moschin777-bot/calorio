@@ -139,6 +139,12 @@ FOOD_DATABASE = {
     # Выпечка
     "ватрушка": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
     "ватрушки": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
+    
+    # Салаты
+    "салат крабовый": {"calories_per_100g": 150, "proteins_per_100g": 8, "fats_per_100g": 10, "carbs_per_100g": 8},
+    "крабовый салат": {"calories_per_100g": 150, "proteins_per_100g": 8, "fats_per_100g": 10, "carbs_per_100g": 8},
+    "салат цезарь": {"calories_per_100g": 160, "proteins_per_100g": 10, "fats_per_100g": 12, "carbs_per_100g": 5},
+    "овощной салат": {"calories_per_100g": 30, "proteins_per_100g": 1, "fats_per_100g": 1, "carbs_per_100g": 5},
 }
 
 def _search_local_database(food_name, weight_grams):
