@@ -125,8 +125,13 @@ class DishViewSet(viewsets.ModelViewSet):
         fats = validated_data.get('fats', Decimal('0'))
         carbohydrates = validated_data.get('carbohydrates', Decimal('0'))
         
+        # Преобразуем Decimal в float для корректного сравнения с нулем
+        proteins_float = float(proteins) if isinstance(proteins, Decimal) else float(proteins or 0)
+        fats_float = float(fats) if isinstance(fats, Decimal) else float(fats or 0)
+        carbohydrates_float = float(carbohydrates) if isinstance(carbohydrates, Decimal) else float(carbohydrates or 0)
+        
         # Если КБЖУ не указаны (все равны 0) и есть название блюда, пытаемся найти автоматически
-        if (calories == 0 and proteins == 0 and fats == 0 and carbohydrates == 0 and dish_name):
+        if (calories == 0 and proteins_float == 0 and fats_float == 0 and carbohydrates_float == 0 and dish_name):
             import logging
             logger = logging.getLogger(__name__)
             logger.info(f"Автоматический поиск КБЖУ для блюда: {dish_name} ({dish_weight}г)")

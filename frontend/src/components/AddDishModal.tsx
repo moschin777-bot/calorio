@@ -95,11 +95,21 @@ export default function AddDishModal({
     setLoading(true);
 
     try {
-      await dishesAPI.create({
-        ...formData,
+      // Отправляем только заполненные поля КБЖУ (если они не равны 0)
+      const payload: any = {
+        name: formData.name,
         date,
         meal_type: mealType,
-      });
+        weight: formData.weight,
+      };
+      
+      // Добавляем КБЖУ только если они заполнены (не равны 0)
+      if (formData.calories > 0) payload.calories = formData.calories;
+      if (formData.proteins > 0) payload.proteins = formData.proteins;
+      if (formData.fats > 0) payload.fats = formData.fats;
+      if (formData.carbohydrates > 0) payload.carbohydrates = formData.carbohydrates;
+      
+      await dishesAPI.create(payload);
       onSuccess();
     } catch (err: any) {
       const errorData = err.response?.data;
