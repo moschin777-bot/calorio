@@ -107,10 +107,19 @@ class DishViewSet(viewsets.ModelViewSet):
         # Получаем значения КБЖУ (если не указаны, считаем их равными 0)
         dish_name = validated_data.get('name', '').strip()
         dish_weight = int(validated_data.get('weight', 100))
-        calories = int(validated_data.get('calories', 0) or 0)
+        
+        # ВАЖНО: проверяем, были ли КБЖУ переданы вообще (None) или переданы как 0
+        # Если поля отсутствуют в validated_data, значит они не были отправлены
+        calories_raw = validated_data.get('calories', None)
         proteins_raw = validated_data.get('proteins', None)
         fats_raw = validated_data.get('fats', None)
         carbohydrates_raw = validated_data.get('carbohydrates', None)
+        
+        # Если поля не переданы или равны 0, считаем что КБЖУ не указаны
+        calories = int(calories_raw) if calories_raw is not None else 0
+        proteins_raw = proteins_raw if proteins_raw is not None else None
+        fats_raw = fats_raw if fats_raw is not None else None
+        carbohydrates_raw = carbohydrates_raw if carbohydrates_raw is not None else None
         
         # Преобразуем в Decimal, если указаны, иначе 0
         if proteins_raw is not None:
@@ -134,10 +143,19 @@ class DishViewSet(viewsets.ModelViewSet):
         carbohydrates_float = float(carbohydrates)
         
         # ВСЕГДА пытаемся найти КБЖУ автоматически, если они не указаны (все равны 0) и есть название блюда
-        if (calories == 0 and proteins_float == 0 and fats_float == 0 and carbohydrates_float == 0 and dish_name):
+        # Проверяем: либо поля не были переданы (None), либо были переданы как 0
+        kbru_not_provided = (
+            (calories_raw is None or calories == 0) and
+            (proteins_raw is None or proteins_float == 0) and
+            (fats_raw is None or fats_float == 0) and
+            (carbohydrates_raw is None or carbohydrates_float == 0) and
+            dish_name
+        )
+        
+        if kbru_not_provided:
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f"Автоматический поиск КБЖУ для блюда: {dish_name} ({dish_weight}г)")
+            logger.info(f"🔍 Автоматический поиск КБЖУ для блюда: '{dish_name}' ({dish_weight}г)")
             
             nutrition_data = search_food_nutrition(dish_name, dish_weight)
             if nutrition_data:
@@ -147,7 +165,7 @@ class DishViewSet(viewsets.ModelViewSet):
                 carbohydrates = Decimal(str(nutrition_data.get('carbohydrates', 0)))
                 logger.info(f"✅ КБЖУ найдены автоматически: {calories} ккал, Б: {proteins}г, Ж: {fats}г, У: {carbohydrates}г")
             else:
-                logger.warning(f"❌ Не удалось найти КБЖУ для блюда: {dish_name}")
+                logger.warning(f"❌ Не удалось найти КБЖУ для блюда: '{dish_name}'")
         
         # Создаем блюдо напрямую через модель, чтобы избежать проблем с date и meal_type в serializer
         from .models import Dish
