@@ -102,9 +102,57 @@ def calculate_macros(calories, weight=None):
     }
 
 
+# Локальная база данных популярных блюд (fallback если OpenRouter недоступен)
+FOOD_DATABASE = {
+    "яичница": {"calories_per_100g": 200, "proteins_per_100g": 13, "fats_per_100g": 15, "carbs_per_100g": 1},
+    "яичница с помидорами": {"calories_per_100g": 180, "proteins_per_100g": 12, "fats_per_100g": 13, "carbs_per_100g": 3},
+    "суп гороховый": {"calories_per_100g": 60, "proteins_per_100g": 4, "fats_per_100g": 2, "carbs_per_100g": 8},
+    "гороховый суп": {"calories_per_100g": 60, "proteins_per_100g": 4, "fats_per_100g": 2, "carbs_per_100g": 8},
+    "сырники": {"calories_per_100g": 250, "proteins_per_100g": 12, "fats_per_100g": 10, "carbs_per_100g": 25},
+    "сырник": {"calories_per_100g": 250, "proteins_per_100g": 12, "fats_per_100g": 10, "carbs_per_100g": 25},
+    "варенье": {"calories_per_100g": 250, "proteins_per_100g": 0, "fats_per_100g": 0, "carbs_per_100g": 65},
+    "гречка": {"calories_per_100g": 100, "proteins_per_100g": 4, "fats_per_100g": 1, "carbs_per_100g": 20},
+    "гречневая каша": {"calories_per_100g": 100, "proteins_per_100g": 4, "fats_per_100g": 1, "carbs_per_100g": 20},
+    "котлеты": {"calories_per_100g": 250, "proteins_per_100g": 18, "fats_per_100g": 15, "carbs_per_100g": 10},
+    "котлета": {"calories_per_100g": 250, "proteins_per_100g": 18, "fats_per_100g": 15, "carbs_per_100g": 10},
+    "гречка с котлетами": {"calories_per_100g": 175, "proteins_per_100g": 11, "fats_per_100g": 8, "carbs_per_100g": 15},
+}
+
+def _search_local_database(food_name, weight_grams):
+    """Поиск в локальной базе данных"""
+    food_lower = food_name.lower().strip()
+    
+    # Прямое совпадение
+    if food_lower in FOOD_DATABASE:
+        data = FOOD_DATABASE[food_lower]
+        ratio = weight_grams / 100.0
+        return {
+            "name": food_name,
+            "weight": weight_grams,
+            "calories": int(round(data["calories_per_100g"] * ratio)),
+            "proteins": round(data["proteins_per_100g"] * ratio, 2),
+            "fats": round(data["fats_per_100g"] * ratio, 2),
+            "carbohydrates": round(data["carbs_per_100g"] * ratio, 2),
+        }
+    
+    # Поиск по частичному совпадению
+    for key, data in FOOD_DATABASE.items():
+        if key in food_lower or food_lower in key:
+            ratio = weight_grams / 100.0
+            return {
+                "name": food_name,
+                "weight": weight_grams,
+                "calories": int(round(data["calories_per_100g"] * ratio)),
+                "proteins": round(data["proteins_per_100g"] * ratio, 2),
+                "fats": round(data["fats_per_100g"] * ratio, 2),
+                "carbohydrates": round(data["carbs_per_100g"] * ratio, 2),
+            }
+    
+    return None
+
 def search_food_nutrition(food_name, weight_grams=100):
     """
-    Поиск КБЖУ по названию продукта через OpenRouter API (LLM).
+    Поиск КБЖУ по названию продукта через OpenRouter API (LLM) с fallback на локальную базу.
     
     Args:
         food_name: Название продукта/блюда
@@ -127,11 +175,17 @@ def search_food_nutrition(food_name, weight_grams=100):
     
     logger = logging.getLogger(__name__)
     
+    # Сначала пробуем локальную базу данных
+    local_result = _search_local_database(food_name, weight_grams)
+    if local_result:
+        logger.info(f"Найдено в локальной базе: {food_name}")
+        return local_result
+    
     # Получаем API ключ из настроек
     api_key = getattr(settings, 'OPENROUTER_API_KEY', '')
     
     if not api_key:
-        logger.warning("OpenRouter API ключ не настроен")
+        logger.warning("OpenRouter API ключ не настроен, используем только локальную базу")
         return None
     
     try:
@@ -195,7 +249,14 @@ def search_food_nutrition(food_name, weight_grams=100):
         
         # Проверяем статус ответа
         if response.status_code != 200:
-            logger.error(f"OpenRouter API вернул статус {response.status_code}: {response.text[:200]}")
+            error_text = response.text[:200] if hasattr(response, 'text') else "Не удалось прочитать ответ"
+            logger.error(f"OpenRouter API вернул статус {response.status_code}: {error_text}")
+            
+            # Если ошибка 402 (недостаточно кредитов), пробуем локальную базу
+            if response.status_code == 402:
+                logger.warning("OpenRouter API: недостаточно кредитов, пробуем локальную базу")
+                return _search_local_database(food_name, weight_grams)
+            
             return None
         
         # Парсим JSON ответа
