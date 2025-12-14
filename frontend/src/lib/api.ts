@@ -24,6 +24,18 @@ const api = axios.create({
 
 // Interceptor для добавления токена
 api.interceptors.request.use((config) => {
+  // ВАЖНО: не добавляем Authorization на публичные auth-эндпоинты.
+  // DRF выполняет аутентификацию ДО permissions, поэтому "битый/просроченный" Bearer
+  // может приводить к 401 даже на /auth/login/, из-за чего кажется, что "пароль не подходит".
+  const url = config.url || '';
+  const isAuthEndpoint =
+    url.includes('/auth/login/') ||
+    url.includes('/auth/register/') ||
+    url.includes('/auth/token/refresh/') ||
+    url.includes('/auth/logout/');
+
+  if (isAuthEndpoint) return config;
+
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -37,7 +49,14 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const reqUrl: string = originalRequest?.url || '';
+    const isAuthEndpoint =
+      reqUrl.includes('/auth/login/') ||
+      reqUrl.includes('/auth/register/') ||
+      reqUrl.includes('/auth/token/refresh/') ||
+      reqUrl.includes('/auth/logout/');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       
       try {

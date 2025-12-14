@@ -130,6 +130,12 @@ FOOD_DATABASE = {
     "манка с вареньем": {"calories_per_100g": 120, "proteins_per_100g": 2, "fats_per_100g": 1, "carbs_per_100g": 25},
     "овсянка": {"calories_per_100g": 90, "proteins_per_100g": 3, "fats_per_100g": 2, "carbs_per_100g": 15},
     "рис": {"calories_per_100g": 130, "proteins_per_100g": 3, "fats_per_100g": 0, "carbs_per_100g": 28},
+
+    # Молочные продукты
+    "йогурт": {"calories_per_100g": 75, "proteins_per_100g": 4, "fats_per_100g": 3, "carbs_per_100g": 8},
+    "йогурт натуральный": {"calories_per_100g": 65, "proteins_per_100g": 5, "fats_per_100g": 3, "carbs_per_100g": 4},
+    "кефир": {"calories_per_100g": 50, "proteins_per_100g": 3, "fats_per_100g": 2.5, "carbs_per_100g": 4},
+    "творог": {"calories_per_100g": 160, "proteins_per_100g": 16, "fats_per_100g": 9, "carbs_per_100g": 3},
     
     # Мясные блюда
     "котлеты": {"calories_per_100g": 250, "proteins_per_100g": 18, "fats_per_100g": 15, "carbs_per_100g": 10},
@@ -140,6 +146,8 @@ FOOD_DATABASE = {
     # Выпечка
     "ватрушка": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
     "ватрушки": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
+    "оладьи": {"calories_per_100g": 220, "proteins_per_100g": 6, "fats_per_100g": 8, "carbs_per_100g": 32},
+    "оладушек": {"calories_per_100g": 220, "proteins_per_100g": 6, "fats_per_100g": 8, "carbs_per_100g": 32},
     
     # Салаты
     "салат крабовый": {"calories_per_100g": 150, "proteins_per_100g": 8, "fats_per_100g": 10, "carbs_per_100g": 8},
@@ -290,11 +298,13 @@ def search_food_nutrition(food_name, weight_grams=100):
         url = "https://openrouter.ai/api/v1/chat/completions"
         
         site_url = getattr(settings, 'SITE_URL', 'http://217.26.29.106')
+        # ВАЖНО: значения HTTP-заголовков должны быть ASCII (latin-1) для urllib3/requests.
+        # Кириллица в X-Title приводит к UnicodeEncodeError и полностью ломает поиск.
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json; charset=utf-8",
             "HTTP-Referer": site_url,
-            "X-Title": "Calorio - Поиск КБЖУ",
+            "X-Title": "Calorio - Nutrition Search",
         }
         
         # Формируем промпт для определения КБЖУ по названию блюда

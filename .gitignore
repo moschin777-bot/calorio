@@ -38,6 +38,10 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
 # Environment variables
 .env
 .env.local
@@ -65,3 +69,4 @@ logs/
 *.tmp
 *.bak
 *.swp
+

@@ -1,0 +1,12 @@
+# Large dependencies / build outputs
+frontend/node_modules/
+frontend/dist/
+
+# Local build / caches
+**/__pycache__/
+**/*.pyc
+
+# Archive folder for parallel-chat artifacts
+parallel_chat_artifacts/
+
+

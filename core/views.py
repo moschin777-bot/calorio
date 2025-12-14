@@ -513,11 +513,13 @@ class DishRecognitionView(generics.CreateAPIView):
             url = "https://openrouter.ai/api/v1/chat/completions"
             
             site_url = getattr(settings, 'SITE_URL', 'http://217.26.29.106')
+            # ВАЖНО: значения HTTP-заголовков должны быть ASCII (latin-1) для urllib3/requests.
+            # Кириллица в X-Title приводит к UnicodeEncodeError и запрос до OpenRouter даже не уходит.
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json; charset=utf-8",
                 "HTTP-Referer": site_url,
-                "X-Title": "Calorio - Распознавание блюд",
+                "X-Title": "Calorio - Dish Recognition",
             }
             
             # Логируем для отладки (без ключа)
@@ -759,7 +761,7 @@ If you cannot determine exact values, use realistic estimates based on typical v
             logger = logging.getLogger(__name__)
             logger.error(f"Ошибка валидации данных при распознавании: {str(e)}")
             return Response(
-                {"detail": "Не удалось распознать блюдо. Некорректные данные от API."},
+                {"detail": f"Не удалось распознать блюдо. Некорректные данные от API: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         except KeyError as e:
