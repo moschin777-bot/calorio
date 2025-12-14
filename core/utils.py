@@ -142,6 +142,16 @@ FOOD_DATABASE = {
     "котлета": {"calories_per_100g": 250, "proteins_per_100g": 18, "fats_per_100g": 15, "carbs_per_100g": 10},
     "гречка с котлетами": {"calories_per_100g": 175, "proteins_per_100g": 11, "fats_per_100g": 8, "carbs_per_100g": 15},
     "рис с котлетами": {"calories_per_100g": 190, "proteins_per_100g": 11, "fats_per_100g": 8, "carbs_per_100g": 18},
+
+    # Базовые мясо/рыба
+    "курица": {"calories_per_100g": 190, "proteins_per_100g": 27, "fats_per_100g": 9, "carbs_per_100g": 0},
+    "куриная грудка": {"calories_per_100g": 165, "proteins_per_100g": 31, "fats_per_100g": 4, "carbs_per_100g": 0},
+    "индейка": {"calories_per_100g": 170, "proteins_per_100g": 29, "fats_per_100g": 6, "carbs_per_100g": 0},
+    "говядина": {"calories_per_100g": 250, "proteins_per_100g": 26, "fats_per_100g": 17, "carbs_per_100g": 0},
+    "свинина": {"calories_per_100g": 270, "proteins_per_100g": 25, "fats_per_100g": 20, "carbs_per_100g": 0},
+    "лосось": {"calories_per_100g": 200, "proteins_per_100g": 20, "fats_per_100g": 13, "carbs_per_100g": 0},
+    "треска": {"calories_per_100g": 82, "proteins_per_100g": 18, "fats_per_100g": 1, "carbs_per_100g": 0},
+    "тунец": {"calories_per_100g": 132, "proteins_per_100g": 29, "fats_per_100g": 1, "carbs_per_100g": 0},
     
     # Выпечка
     "ватрушка": {"calories_per_100g": 300, "proteins_per_100g": 8, "fats_per_100g": 12, "carbs_per_100g": 45},
@@ -161,6 +171,17 @@ FOOD_DATABASE = {
     "свекла": {"calories_per_100g": 43, "proteins_per_100g": 1.6, "fats_per_100g": 0.2, "carbs_per_100g": 10},
     # Частый салат/блюдо
     "свекла с сыром": {"calories_per_100g": 135, "proteins_per_100g": 8.5, "fats_per_100g": 8.5, "carbs_per_100g": 7.6},
+
+    # Овощи/фрукты (часто вводятся как отдельные позиции)
+    "картофель": {"calories_per_100g": 77, "proteins_per_100g": 2, "fats_per_100g": 0.1, "carbs_per_100g": 17},
+    "пюре": {"calories_per_100g": 110, "proteins_per_100g": 2, "fats_per_100g": 4, "carbs_per_100g": 17},
+    "макароны": {"calories_per_100g": 130, "proteins_per_100g": 4.5, "fats_per_100g": 1.1, "carbs_per_100g": 25},
+    "помидор": {"calories_per_100g": 18, "proteins_per_100g": 0.9, "fats_per_100g": 0.2, "carbs_per_100g": 3.9},
+    "огурец": {"calories_per_100g": 15, "proteins_per_100g": 0.7, "fats_per_100g": 0.1, "carbs_per_100g": 3.6},
+    "капуста": {"calories_per_100g": 25, "proteins_per_100g": 1.3, "fats_per_100g": 0.1, "carbs_per_100g": 6},
+    "морковь": {"calories_per_100g": 41, "proteins_per_100g": 0.9, "fats_per_100g": 0.2, "carbs_per_100g": 10},
+    "яблоко": {"calories_per_100g": 52, "proteins_per_100g": 0.3, "fats_per_100g": 0.2, "carbs_per_100g": 14},
+    "банан": {"calories_per_100g": 89, "proteins_per_100g": 1.1, "fats_per_100g": 0.3, "carbs_per_100g": 23},
 }
 
 def _find_best_local_key(food_lower: str) -> Optional[str]:
@@ -186,7 +207,7 @@ def _compose_from_parts(food_name: str, weight_grams: int):
     import re
 
     food_lower = str(food_name).lower().strip()
-    parts = [p.strip() for p in re.split(r"\s+(?:с|и)\s+|\s*\+\s*|\s*,\s*", food_lower) if p.strip()]
+    parts = [p.strip() for p in re.split(r"\s+(?:с|и)\s+|\s*\+\s*|\s*,\s*|\s*/\s*", food_lower) if p.strip()]
     if len(parts) < 2 or len(parts) > 4:
         return None
 
